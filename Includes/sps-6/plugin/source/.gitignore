@@ -1,0 +1,4 @@
+*.ico*.res*.bat*.bak
+*.o
+*.ppu
+^lib/

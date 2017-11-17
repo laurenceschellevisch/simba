@@ -1,0 +1,165 @@
+program new;
+//Experimental map-creator (unfinished)
+{$define SRL}
+{$I SRL/OSR.simba}
+{$I RSWalker/Walker.simba}
+
+type
+  TMapCreator = record
+    tmpBmp:Integer;
+    width,height:Int32;
+    finder:TRSPosFinder;
+    worldmap: TMufasaBitmap;
+    tmpWorld: T2DIntArray;
+    localMap: T2DIntArray;
+    firstMove:Boolean;
+  end;
+  TMapPieces = Array of Array of T2DIntArray;
+
+var
+  Creator:TMapCreator;
+
+const
+  PIECE_SIZE = 183;
+
+procedure TMapCreator.Create(W,H:Int32);
+begin
+  Width := W;
+  Height := H;
+
+  worldmap.Init(client.GetMBitmaps());
+  worldmap.SetSize(W,H);
+  finder.Init(w_getClientPID());
+  finder.UpdateMap(True);
+  firstMove := True;
+end;
+
+procedure TMapCreator.Free();
+begin
+  worldmap.Free();
+  finder.Free();
+end;
+
+function TMapCreator.UpdateLocal(checkForChange:Boolean=False): Boolean;
+var oldLocal:T2DIntArray;
+begin
+  try
+    finder.UpdateMap(True);
+    oldLocal := Copy(localMap);
+    localMap := w_GetArea(finder.localMap, 72,72,438,438);
+    if checkForChange then
+      Result := w_imCompareAt(oldLocal,localMap,Point(0,0),1) <= 0.99;
+  except
+    self.UpdateLocal();
+  end;
+end;
+
+function TMapCreator.PartitionLocal(): TMapPieces;
+var
+  x,y:Int32;
+  SZ:Int32 = PIECE_SIZE;
+begin
+  SetLength(Result, 2,2);
+  for x:=0 to 1 do
+    for y:=0 to 1 do
+     Result[x,y] := w_GetArea(localMap, SZ*X, SZ*Y, SZ*(X+1), SZ*(Y+1));
+end;
+
+function TMapCreator.Locate(): TPoint;
+var
+  parts:TMapPieces;
+  best,pos:TPoint;
+  corr:T2DFloatArray;
+  diff,similarity:Single;
+  x,y:Int32;
+begin
+  parts := self.PartitionLocal();
+  tmpWorld := worldmap.ToMatrix();
+  similarity := -1;
+  for y:=0 to 1 do
+    for x:=0 to 1 do
+    begin
+      corr := libcv.MatchTemplate(tmpWorld,parts[x,y],CV_TM_CCOEFF_NORMED,False);
+      pos := w_ArgMax(corr);
+      diff := corr[pos.y,pos.x];
+      if (diff > similarity) then
+      begin
+        similarity := diff;
+        best := Point(x,y);
+        Result := pos;
+        if diff >= 0.97 then
+          break(2);
+      end;
+    end;
+  if best.x = 1 then Result.x -= PIECE_SIZE;
+  if best.y = 1 then Result.y -= PIECE_SIZE;
+end;
+
+procedure TMapCreator.Insert();
+var
+  bmp: Integer;
+  pos: TPoint;
+begin
+  if firstMove then
+  begin
+    firstMove := False;
+    UpdateLocal();
+    bmp := CreateBitmap(PIECE_SIZE*2,PIECE_SIZE*2);
+    DrawMatrixBitmap(bmp, localMap);
+    worldmap.drawBitmap(bmp, Point(width div 2 - PIECE_SIZE, height div 2 - PIECE_SIZE));
+    FreeBitmap(bmp);
+  end else
+  begin
+    if not UpdateLocal(True) then Exit();
+    WriteLn('Rescanning...');
+    pos := Locate();
+    if PointInBox(pos,[0,0,width-1,height-1]) then
+    begin
+      bmp := CreateBitmap(PIECE_SIZE*2,PIECE_SIZE*2);
+      DrawMatrixBitmap(bmp, localMap);
+      worldmap.drawBitmap(bmp, pos);
+      FreeBitmap(bmp);
+    end;
+  end;
+  WriteLn('------------------');
+end;
+
+procedure TMapCreator.Show();
+var tmp:TMufasaBitmap;
+begin
+  tmp.Init(client.GetMBitmaps());
+  tmp.SetSize(Width,Height);
+  tmp.drawBitmap(worldmap.getIndex(),Point(0,0));
+  tmp.ResizeEx(RM_Bilinear,650,650);
+  ShowBitmap(tmp.getIndex());
+  tmp.Free();
+end;
+
+
+procedure TMapCreator.Save(filepath:String);
+begin
+  worldmap.SaveToFile(filepath);
+end;
+
+
+procedure WaitKey(k:Integer; maxWait:UInt32);
+var t:UInt32;
+begin
+  t := GetTimeRunning() + maxWait;
+  repeat
+    Wait(10);
+    if isKeyDown(k) then Exit();
+  until GetTimeRunning() - t > 0;
+end;
+
+
+var c:TMapCreator;
+begin
+  c.Create(2000,2000);
+  repeat
+    c.Insert();
+    c.Show();
+    c.Save('test.png');
+    Wait(500);
+  until False;
+end.

@@ -1,0 +1,23 @@
+Program ChopTree;
+{$i srl-6/SRL.simba}
+
+var
+  BlueCharm:Integer;
+Procedure ClickCharm;
+var
+  X,Y:Integer;
+begin
+  if FindDTM(BlueCharm, x, y, 457, 208, 731, 455) then
+  begin
+  MoveMouse(x, y);
+  wait(randomrange(100, 200));
+  ClickMouse(X, Y, mouse_Left);
+  wait(randomrange(150, 250));
+  end;
+end;
+
+Begin
+BlueCharm := DTMFromString('mQwAAAHicY2ZgYEhgYmDIB+I8IOZhZGD4CxQTBNIKdb8ZkmrWMcSVL2fgBIrBMCMSBgIAHlAHIg==');
+ClickCharm;
+FreeDtm(BlueCharm);
+end.

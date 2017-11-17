@@ -1,0 +1,481 @@
+
+(*
+R_GetAnimation
+~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function R_GetAnimation: Integer;
+
+Returns your player's animation.
+
+.. note::
+
+  by Drags111
+
+*)
+function R_GetAnimation: Integer;
+var
+  Me: Integer;
+begin
+  Me := SmartGetFieldObject(SmartCurrentTarget, 0, Client_LocalPlayer);
+  Result := SmartGetFieldInt(SmartCurrentTarget, me, Actor_animation)  * Actor_animation_Multiplier;
+  SmartFreeObject(SmartCurrentTarget, Me);
+end;
+
+(*
+R_GetPlayerIndex
+~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function R_GetPlayerIndex: Integer;
+
+Returns the Player Index.
+
+.. note::
+
+  by Frement
+
+*)
+function R_GetPlayerIndex: Integer;
+begin
+  Result := (SmartGetFieldInt(SmartCurrentTarget, 0, 'client.hg') * 691757909) + 32768;
+end;
+
+(*
+R_IsAnimating
+~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function R_IsAnimating: Boolean;
+
+Returns true if your player is animating.
+
+.. note::
+
+  by lordsaturn
+
+*)
+function R_IsAnimating: Boolean;
+begin
+  Result := R_GetAnimation > - 1;
+end;
+
+(*
+R_GetSkillLevel
+~~~~~~~
+
+.. code-block:: pascal
+
+    function R_GetSkillLevel(SkillConst: Integer): Integer;
+
+Returns a skill level(Top) specified by Skill(Please use constants).
+
+.. note::
+
+  by mormonman
+
+*)
+function R_GetSkillLevel(SkillConst: Integer): Integer;
+begin
+  Result := SmartGetFieldArrayInt(SmartCurrentTarget, 0, Client_CurrentLevels, skillconst);
+end;
+
+(*
+R_GetMaxSkillLevel
+~~~~~~~
+
+.. code-block:: pascal
+
+    function R_GetMaxSkillLevel(SkillConst: Integer): Integer;
+
+Returns a skill level(Top) specified by Skill(Please use constants).
+
+.. note::
+
+  by ?
+
+*)
+function R_GetMaxSkillLevel(SkillConst: Integer): Integer;
+begin
+  Result := SmartGetFieldArrayInt(SmartCurrentTarget, 0, Client_RealLevels, skillconst);
+end;
+
+(*
+R_GetSkillExp
+~~~~~~~
+
+.. code-block:: pascal
+
+    R_GetSkillExp(SkillConst: Integer): Integer;
+
+Returns Skill Exp(Top) specified by Skill(Please use constants).
+
+.. note::
+
+  by mormonman
+
+*)
+function R_GetSkillExp(SkillConst: Integer): Integer;
+begin
+  Result := SmartGetFieldArrayInt(SmartCurrentTarget, 0, client_experiences, SkillConst);
+end;
+
+(*
+R_GetHealth
+~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function R_GetHealth: integer;
+
+Returns the number value of your player's current health.
+
+.. note::
+
+  by ?
+
+*)
+function R_GetHealth: extended;
+begin
+  Result := R_GetSkillLevel(skill_hitpoints);
+end;
+
+(*
+R_GetMaxHealth
+~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function R_GetMaxHealth: integer;
+
+Returns the max number value of your player's health.
+
+.. note::
+
+  by ?
+
+*)
+function R_GetMaxHealth: extended;
+begin
+  Result := R_GetMaxSkillLevel(skill_hitpoints);
+end;
+
+(*
+R_GetHealthPercent
+~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function R_GetHealthPercent: integer;
+
+Returns the Current health percentage of player.
+
+.. note::
+
+  by elfyyy
+
+*)
+
+function R_GetHealthPercent: extended;
+begin
+  if (R_GetHealth = 0) then
+  begin
+    Result := 100;
+    exit;
+  end;
+  if (R_GetMaxHealth = 0) then
+  begin
+    Result := R_GetHealth;
+    exit;
+  end;
+  Result := Round((R_GetHealth / R_GetMaxHealth) * 100);
+end;
+
+(*
+R_GetRunEnergy
+~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function R_GetRunEnergy: integer;
+
+Returns integer value of current run energy.
+
+.. note::
+
+  by Sirenia
+
+*)
+function R_GetRunEnergy: integer;
+begin
+  Result := SmartGetFieldInt(SmartCurrentTarget, 0, Client_Energy) * Client_Energy_Multiplier ;
+end;
+
+(*
+R_IsAutoRetaliateOn
+~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function R_IsAutoRetaliateOn
+
+Returns true if autoretaliate is on.
+
+.. note::
+
+  by elfyyy
+
+*)
+function R_IsAutoRetaliateOn: Boolean;
+begin
+  Result := R_GetSetting(172) = 0;
+end;
+
+(*
+R_IsRunOn
+~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function R_IsRunOn
+
+Returns true if Run is on.
+
+.. note::
+
+  by elfyyy
+
+*)
+function R_IsRunOn: Boolean;
+begin
+  Result := R_GetSetting(173) = 1;
+end;
+
+(*
+R_IsPoisoned
+~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function R_IsPoisoned
+
+Returns true if Poisoned.
+
+.. note::
+
+  by elfyyy
+
+*)
+function R_IsPoisoned: Boolean;
+begin
+  Result := R_GetSetting(102) > 0;
+end;
+
+(*
+R_DidTeleport
+~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function R_DidTeleport: Boolean;
+
+Returns true if player teleported.
+Example:
+WaitFunc(@R_DidTeleport, 200, 30000)
+
+.. note::
+
+  by elfyyy
+
+*)
+function R_DidTeleport: Boolean;
+var
+  Temp: TPoint;
+begin
+  Temp := R_GetTileGlobal;
+  wait(1500);
+  Result := R_DistanceFromTile(Temp) > 10;
+end;
+
+(*
+R_AutoCasting
+~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function R_AutoCasting: Boolean;
+
+Returns true if a spell is selected for auto-cast, false if not.
+
+.. note::
+
+  by Borland
+
+Examples:
+
+.. code-block:: pascal
+
+*)
+function R_AutoCasting: Boolean;
+begin
+  Result := R_GetSetting(108) > 0;
+end;
+
+(*
+R_GetSpecPercent
+~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function R_GetSpecPercent: Integer;
+
+Returns the players current special attack %
+
+.. note::
+
+  by Borland
+
+*)
+function R_GetSpecPercent: Integer;
+begin
+  Result := R_GetSetting(300) / 10;
+end;
+
+
+(*
+R_GetWeight
+~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function R_GetWeight: Integer;
+
+Returns the player's current carried weight in kg.
+
+.. note::
+
+  by Krazy_Meerkat
+
+*)
+function R_GetWeight: Integer;
+begin
+  Result := (SmartGetFieldInt(SmartCurrentTarget, 0, client_weight) * client_weight_Multiplier);
+end;
+
+(*
+R_GetLoginState
+~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function R_GetLoginState: Integer;
+
+Returns the player's current login state.
+10 = at title screen
+20 = logging in
+25 = rendering the world
+30 = map loaded
+
+.. note::
+
+  by Krazy_Meerkat
+
+*)
+function R_GetLoginState: Integer;
+begin
+  Result := (SmartGetFieldInt(SmartCurrentTarget, 0, Client_LoginState) * Client_LoginState_Multiplier);
+end;
+
+(*
+R_GetPlane
+~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function R_GetPlane: Integer;
+
+Returns the player's current plane, doesn't support going beneath ground i.e
+Lumbridge cellar. Each floor up adds 1 onto the default ground-level (0).
+
+.. note::
+
+  by Krazy_Meerkat
+
+*)
+function R_GetPlane: Integer;
+begin
+  Result := (SmartGetFieldInt(SmartCurrentTarget, 0, Client_Plane) * Client_Plane_Multiplier);
+end;
+
+(*
+R_WaitForAnimation
+~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function R_WaitForAnimation(timeout: integer): boolean;
+
+Returns true when player is animating or when timeout is reached.
+
+.. note::
+
+  by ?
+
+*)
+function R_WaitForAnimation(timeout: integer): boolean;
+var
+  t: integer;
+begin
+  Result := false;
+  MarkTime(t);
+  while R_GetAnimation = - 1 do
+  begin
+  wait(500);
+    if (TimeFromMark(t) >= timeout) then
+      Exit;
+  end;
+  Result := true;
+end;
+
+(*
+R_InFight
+~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function R_InFight: Boolean;
+
+Returns true if player is in combat.
+
+.. note::
+
+  by elfyyy
+
+*)
+function R_InFight: Boolean;
+begin
+  result := (R_GetActorLoopCycle > R_GetClientLoopCycle) or (Round(R_InteractingNpc().Hitpoints) > 0);
+end;
+
+(*
+R_UnderAttack
+~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function R_InFight: Boolean;
+
+Returns true if player is under attack.
+
+.. note::
+
+  by elfyyy
+
+*)
+function R_UnderAttack: Boolean;
+begin
+  result := (R_GetActorLoopCycle > R_GetClientLoopCycle);
+end;

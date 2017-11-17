@@ -1,0 +1,450 @@
+(*
+R_IsUpAction
+~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    R_IsUpAction: Boolean;
+
+Returns true if there is uptext and it doesn't say "Walk here".
+
+.. note::
+
+  by Krazy_Meerkat
+
+*)
+function R_IsUpAction: Boolean;
+begin
+  Result:= false;
+  if (not(R_GetUpText = '') and not(R_IsUpText('Walk'))) then
+    Result:= true;
+end;
+
+{*
+R_ChooseOptionEx
+~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function R_ChooseOptionEx(Option: String): Boolean;
+
+Clicks on given option in open menu.
+If the option appears twice, avoid, close the menu and try again.
+
+.. note::
+
+  by Krazy_Meerkat
+
+*}
+function R_ChooseOptionEx(Option: String): Boolean;
+var
+  Index, MenuX, MenuY, MenuWidth, XOff, YOff, i, l, h, k: Integer;
+  Options: TStringArray;
+begin
+  Options := R_GetMenuOptions;
+  if (not R_IsMenuOpen) then
+    Exit;
+  H := High(Options);
+  k:= 0;
+  for i := 0 To H do
+  begin
+    if (Pos(Option, Options[i]) > 0) then
+    begin
+      inc(k);
+      l:= i;
+    end;
+  end;
+  if (k = 1) then
+  begin
+    Index := R_GetMenuIndex(Option, Options);
+  end else
+    Index := -1;
+  if (Index = -1) then
+    Index := R_GetMenuIndex('Cancel', Options);
+  MenuX := SmartGetFieldInt(SmartCurrentTarget, 0, client_menuX) * client_menuX_Multiplier + 4;
+  MenuY := SmartGetFieldInt(SmartCurrentTarget, 0, client_menuY) * client_menuY_Multiplier + 4;
+  MenuWidth := SmartGetFieldInt(SmartCurrentTarget, 0, client_menuWidth) * client_menuWidth_Multiplier;
+  XOff := RandomRange(4, MenuWidth - 4);
+  YOff := RandomRange(20, 25) + (Index * 15);
+  MMouse(MenuX + XOff, MenuY + YOff, 2, 2);
+  Sleep(RandomRange(100, 250));
+  ClickMouse2(Mouse_Left);
+  Result := True;
+end;
+
+{*
+MouseBoxEdit
+~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    procedure MouseBoxEdit(x1, y1, x2, y2: Integer; ClickType: Integer);
+
+Will move the mouse, even if it is already within the destination box.
+
+.. note::
+
+  by Krazy_Meerkat
+
+*}
+procedure MouseBoxEdit(x1, y1, x2, y2: Integer; ClickType: Integer);
+var
+  fx, fy: Integer;
+begin
+  GaussBox(fx, fy, x1, y1, x2, y2);
+
+  if InRange(ClickType, mouse_Right, mouse_move) then
+    Mouse(fx, fy, 0, 0, clickType)
+  else
+    srl_Warn('MouseBox', 'ClickType is NOT a valid number!', warn_AllVersions);
+end;
+
+(*
+R_MouseTile
+~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    R_MouseTile(Tile: TPoint; ranx, rany, ClickType: Integer): Boolean;
+
+Moves to Tile then clicks mouse (will only move if 'mouse_move' passed).
+
+.. note::
+
+  by Krazy_Meerkat
+
+*)
+function R_MouseTile(Tile: TPoint; ranx, rany, ClickType: Integer): Boolean;
+var
+  Tilex, Tiley: Integer;
+  Tile2: TPoint;
+begin
+  Result:= false;
+  Tile2.x:= 0;
+  Tile2.y:= 0;
+  Tile2:= R_TileToMs(Tile);
+  if (Tile2.x = 0) or (Tile2.y = 0) or (Tile2.x > 40000) or (Tile2.y > 40000) or (Tile2.x < -40000) or (Tile2.y < -40000) then
+    Exit;
+  Tilex:= iAbs(Tile2.x);
+  Tiley:= iAbs(Tile2.y);
+  MouseBoxEdit(Tilex-ranx, Tiley-rany, Tilex+ranx, Tiley+rany, ClickType);
+  Result:= true;
+end;
+
+(*
+R_OpenDoor
+~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    R_OpenDoor(DoorTile: TPoint; TileEdge: String): Boolean;
+
+Attempts to open the door on TileEdge ('N', 'S', 'E' or 'W') of DoorTile.
+Returns true if the door was opened.
+
+.. examples:: D = Door [T] = DoorTile
+
+      D
+     [T]      R_OpenDoor(Point(x, y), 'N');
+
+
+     [T]D     R_OpenDoor(Point(x, y), 'E');
+
+
+     [T]      R_OpenDoor(Point(x, y), 'S');
+      D
+
+    D[T]      R_OpenDoor(Point(x, y), 'W');
+
+.. note::
+
+  by Krazy_Meerkat
+
+*)
+function R_OpenDoor(DoorTile: TPoint; TileEdge: String): Boolean;
+var
+  Tilex, Tiley: Integer;
+  Tile2: TPoint;
+begin
+  Result:= false;
+  Tile2.x:= 0;
+  Tile2.y:= 0;
+  if (Lowercase(TileEdge) = 'n') then
+    Tile2:= R_TileOffsetToMS(DoorTile, 0, 62, 100);
+  if (Lowercase(TileEdge) = 's') then
+    Tile2:= R_TileOffsetToMS(DoorTile, 0, -62, 100);
+  if (Lowercase(TileEdge) = 'e') then
+    Tile2:= R_TileOffsetToMS(DoorTile, 62, 0, 100);
+  if (Lowercase(TileEdge) = 'w') then
+    Tile2:= R_TileOffsetToMS(DoorTile, -62, 0, 100);
+  if (Tile2.x = 0) or (Tile2.y = 0) or (Tile2.x > 40000) or (Tile2.y > 40000) or (Tile2.x < -40000) or (Tile2.y < -40000) then
+    Exit;
+  Tilex:= iAbs(Tile2.x);
+  Tiley:= iAbs(Tile2.y);
+  MouseBoxEdit(Tilex-5, Tiley-5, Tilex+5, Tiley-5, mouse_move);
+  wait(203 + random(188));
+  if R_IsUpTextMulti(['Close', 'lose', 'ose', 'los', 'Open', 'Ope', 'pen']) then
+  begin
+    Result:= R_IsUpTextMulti(['Close', 'lose', 'ose', 'los']); //Door is already open
+    if not(Result) then
+    begin
+      ClickMouse2(true);
+      wait(103 + random(288));
+      Result:= true;
+    end;
+  end else
+    if (R_IsUpAction) then
+    begin
+      ClickMouse2(false);
+      wait(103 + random(288));
+      Result:= R_ChooseOption('Open');
+    end;
+end;
+
+(*
+R_CloseDoor
+~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    R_CloseDoor(DoorTile: TPoint; TileEdge: String): Boolean;
+
+See above ^
+
+.. note::
+
+  by Krazy_Meerkat
+
+*)
+function R_CloseDoor(DoorTile: TPoint; TileEdge: String): Boolean;
+var
+  Tilex, Tiley: Integer;
+  Tile2: TPoint;
+begin
+  Result:= false;
+  Tile2.x:= 0;
+  Tile2.y:= 0;
+  if (Lowercase(TileEdge) = 'n') then
+    Tile2:= R_TileOffsetToMS(DoorTile, 0, 62, 30);
+  if (Lowercase(TileEdge) = 's') then
+    Tile2:= R_TileOffsetToMS(DoorTile, 0, -62, 30);
+  if (Lowercase(TileEdge) = 'e') then
+    Tile2:= R_TileOffsetToMS(DoorTile, 62, 0, 30);
+  if (Lowercase(TileEdge) = 'w') then
+    Tile2:= R_TileOffsetToMS(DoorTile, -62, 0, 30);
+  if (Tile2.x = 0) or (Tile2.y = 0) or (Tile2.x > 40000) or (Tile2.y > 40000) or (Tile2.x < -40000) or (Tile2.y < -40000) then
+    Exit;
+  Tilex:= iAbs(Tile2.x);
+  Tiley:= iAbs(Tile2.y);
+  MouseBoxEdit(Tilex-2, Tiley-5, Tilex+2, Tiley-5, mouse_move);
+  wait(303 + random(88));
+  if R_IsUpTextMulti(['Close', 'lose', 'ose', 'los', 'Open', 'Ope', 'pen']) then
+  begin
+    Result:= R_IsUpText('Open'); //Door is already closed
+    if not(Result) then
+    begin
+      clickMouse2(MOUSE_LEFT);
+      Result:= true;
+    end;
+  end else
+  begin
+    if (R_IsUpAction) then
+    begin
+      ClickMouse2(false);
+      wait(103 + random(288));
+      Result:= R_ChooseOption('Close');
+    end;
+  end;
+end;
+
+{*
+R_ClosestBankBooth
+~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function R_ClosestBankBooth: TPoint;
+
+Returns the closest Bank booth Tile in a TPoint.
+Now supports gnome-bankers, ghost-bankers and squire @ pest control.
+
+.. note::
+
+  by Krazy_Meerkat
+
+*}
+function R_ClosestBankBooth: TPoint;
+var
+  Bankers: TNPCArray;
+  me: TPoint;
+  BankerTile: TPointArray;
+  i, CommonX, CommonY: Integer;
+begin
+  Result:= point(-1, -1);
+  Bankers:= R_GetNpcs('anker');
+  if (Length(Bankers) < 1) then
+    Bankers:= R_GetNpcs('Squire');
+  if (Length(Bankers) < 1) then
+  begin
+    writeln('Couldn''t find any close Bankers, terminating!');
+    TerminateScript;
+  end;
+  for i := 1 to High(Bankers) do
+  begin
+    if (CommonX = 0) and (Bankers[i].tile.x = Bankers[i-1].tile.x) then
+    begin
+      CommonX:= Bankers[i].tile.x;
+    end;
+    if (CommonY = 0) and (Bankers[i].tile.y = Bankers[i-1].tile.y) then
+    begin
+      CommonY:= Bankers[i].tile.y;
+    end;
+  end;
+  me:= R_GetTileGlobal;
+  setlength(BankerTile, length(Bankers));
+  for i:=0 to High(Bankers) do
+  begin
+    BankerTile[i]:= Bankers[i].Tile;
+  end;
+  SortTPAFrom(BankerTile, me);
+  if (CommonX > 0) and (me.x < CommonX) then
+    Result:= point(CommonX - 1, BankerTile[0].y);
+  if (CommonX > 0) and (me.x > CommonX) then
+    Result:= point(CommonX + 1, BankerTile[0].y);
+  if (CommonY > 0) and (me.y < CommonY) then
+    Result:= point(BankerTile[0].x, CommonY - 1);
+  if (CommonY > 0) and (me.y > CommonY) then
+    Result:= point(BankerTile[0].x, CommonY + 1);
+end;
+
+{*
+R_RandomMovement
+~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    procedure R_RandomMovement;
+
+Needed a version which didn't change the compass back where it originally was.
+
+.. note::
+
+  by Krazy_Meerkat
+
+*}
+procedure R_RandomMovement;
+var
+  Keys: TIntegerArray;
+  I: Integer;
+begin
+ if(not(LoggedIn))then exit;
+  Keys := [VK_RIGHT, VK_LEFT];
+  I := Random(2);
+ if (Random(2) = I) then
+  begin
+   Wait(100 + random(50));
+   KeyDown(Keys[I]);
+   Wait(500 + random(1000));
+   KeyUp(Keys[I]);
+   Wait(500 + random(1000));
+  end else
+   if (Random(3) = 0) then
+    SleepAndMoveMouse(1000 + random(200));
+end;
+
+{*
+R_SelectOption
+~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function R_SelectOption(Option: String): Boolean;
+
+This function is very useful for selecting an option once you have
+moved the mouse, if there is uptext which reads Option, it left clicks, otherwise
+if an action is available, it rightclicks and attempts chooseoption.
+The reason ChooseOption is used and not R_ChooseOption, is because R_ChooseOption
+returns true when it doesn't click the menu item. The whole function was being
+screwed up by this.
+
+.. note::
+
+  by Krazy_Meerkat
+
+*}
+function R_SelectOption(Option: String): Boolean;
+begin
+  Result:= false;
+  if (R_IsUpText(Option)) then
+  begin
+    ClickMouse2(Mouse_Left);
+    Result:= true;
+  end else
+    if (R_IsUpAction) then
+    begin
+      ClickMouse2(Mouse_Right);
+      Result:= ChooseOption(Option);
+    end;
+end;
+
+{*
+R_InteractTile
+~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function R_InteractTile(Tile: TPoint; Option: String): Boolean;
+
+A function which moves the mouse to a Tile location on the main screen and
+attempts to select Option.
+
+.. note::
+
+  by Krazy_Meerkat
+
+*}
+function R_InteractTile(Tile: TPoint; Option: String): Boolean;
+begin
+  if (BankScreen) then
+    Exit;
+  R_MouseTile(Tile, 15, 15, Mouse_Move);
+  wait(100 + random(50));
+  Result:= R_SelectOption(Option);
+end;
+
+{*
+R_InteractTileWait
+~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function R_InteractTileWait(Tile: TPoint; Option: String; Timeout: Integer): Boolean;
+
+A function which moves the mouse to a Tile location on the main screen and
+attempts to select Option within Timeout ms. Randomly moves the camera position to get a
+better angle
+
+.. note::
+
+  by Krazy_Meerkat
+
+*}
+function R_InteractTileWait(Tile: TPoint; Option: String; Timeout: Integer): Boolean;
+var
+  i: Integer;
+  deg: Extended;
+begin
+  Result:= false;
+  deg:= (360-R_GetMinimapAngleDeg);
+  i := GetSystemTime;
+  repeat
+    if (BankScreen) then
+      Exit;
+    R_MouseTile(Tile, 15, 15, Mouse_Move);
+    wait(100 + random(50));
+    Result:= R_SelectOption(Option);
+    if (((GetSystemTime - i) < Timeout) and not(Result) and (random(100) > 50)) then
+      R_RandomMovement;
+  until (((GetSystemTime - i) > Timeout) or (Result));
+  R_MakeCompass(deg);
+end;

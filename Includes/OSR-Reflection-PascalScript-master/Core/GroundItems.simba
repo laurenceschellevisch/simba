@@ -1,0 +1,155 @@
+type
+  TGroundItem = record
+    ID, Quantity: Integer;
+    Tile: TPoint;
+  end;
+
+  TGroundItemArray = Array of TGroundItem;
+
+(*
+GroundItem
+~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function GroundItem(ID, Quantity: Integer; Tile: TPoint): TGroundItem;
+
+Constructs a new GroundItem.
+
+.. note::
+
+  by Frement
+
+*)
+function GroundItem(ID, Quantity: Integer; Tile: TPoint): TGroundItem;
+begin
+  Result.ID := ID;
+  Result.Quantity := Quantity;
+  Result.Tile := Tile;
+end;
+
+(*
+R_GetGroundItemsAt
+~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    Function R_GetGroundItemsAt(Tile: TPoint): TGroundItemArray;
+
+Gets all ground items on a tile specified by Tile.
+
+.. note::
+
+  by Frement
+
+*)
+Function R_GetGroundItemsAt(Tile: TPoint): TGroundItemArray;
+var
+   BaseX, BaseY, Plane, _Head, _Next, _Node, _Nodes, ID, Quantity: Integer;
+begin
+  BaseX := SmartGetFieldInt(SmartCurrentTarget, 0, client_baseX) * client_baseX_Multiplier;
+  BaseY := SmartGetFieldInt(SmartCurrentTarget, 0, client_baseY) * client_baseY_Multiplier;
+  Plane := SmartGetFieldInt(SmartCurrentTarget, 0, client_plane) * client_plane_Multiplier;
+  _Nodes := SmartGetFieldArray3DObject(SmartCurrentTarget, 0, client_groundItems, Plane, Tile.X - BaseX, Tile.Y - BaseY);
+  _Head := SmartGetFieldObject(SmartCurrentTarget, _Nodes, LinkedList_head);
+  _Next := SmartGetFieldObject(SmartCurrentTarget, _Head, Node_next);
+  while (_Next <> -1) and (_Next <> 0) and (_Next <> _Head) do
+  begin
+    writeln('Next: ' + IntToStr(_NExt));
+    writeln('Node: ' + IntToStr(_Node));
+    ID := SmartGetFieldInt(SmartCurrentTarget, _Next, Item_id);
+    Quantity := SmartGetFieldInt(SmartCurrentTarget, _Next, Item_StackSizes);
+    if (ID = -1) or (Quantity = -1) then
+      Break;
+    SetLength(Result, Length(Result) + 1);
+    Result[High(Result)] := GroundItem(ID * Item_id_Multiplier, Quantity * Item_stackSizes_Multiplier, Tile);
+    _Node := _Next;
+    _Next := SmartGetFieldObject(SmartCurrentTarget, _Next, Node_next);
+    SmartFreeObject(SmartCurrentTarget, _Node);
+  end;
+  SmartFreeObject(SmartCurrentTarget, _Head);
+  SmartFreeObject(SmartCurrentTarget, _Next);
+  SmartFreeObject(SmartCurrentTarget, _Nodes);
+end;
+
+(*
+R_GetAllGroundItems
+~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function R_GetAllGroundItems: TGroundItemArray;
+
+Gets all ground items in players current region.
+
+.. note::
+
+  by Frement
+
+*)
+function R_GetAllGroundItems: TGroundItemArray;
+var
+   X, Y, BaseX, BaseY, Plane, L, I, H: Integer;
+   TempArray: TGroundItemArray;
+begin
+  BaseX := SmartGetFieldInt(SmartCurrentTarget, 0, client_baseX) * client_baseX_Multiplier;
+  BaseY := SmartGetFieldInt(SmartCurrentTarget, 0, client_baseY) * client_baseY_Multiplier;
+  Plane := SmartGetFieldInt(SmartCurrentTarget, 0, client_plane) * client_plane_Multiplier;
+  for X := 0 to 104 do begin
+    for Y := 0 to 104 do begin
+      SetLength(TempArray, 0);
+      TempArray := R_GetGroundItemsAt(Point(BaseX + X, BaseY + Y));
+      L := Length(TempArray);
+      if (L > 0) then begin
+        SetLength(Result, Length(Result) + L);
+        H := Length(Result);
+        for I := 0 to High(TempArray) do begin
+          Result[H - L + I] := TempArray[I];
+        end;
+      end;
+    end;
+  end;
+end;
+
+(*
+R_GetGroundItemsDistance
+~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function R_GetGroundItemsDistance(Distance: Integer): TGroundItemArray;
+
+Gets all ground items within a distance specified by Distance.
+
+.. note::
+
+  by Frement
+
+*)
+function R_GetGroundItemsDistance(Distance: Integer): TGroundItemArray;
+var
+   X, Y, BaseX, BaseY, Plane, L, I, H: Integer;
+   TempArray: TGroundItemArray;
+   Position: TPoint;
+begin
+  BaseX := SmartGetFieldInt(SmartCurrentTarget, 0, client_baseX) * client_baseX_Multiplier;
+  BaseY := SmartGetFieldInt(SmartCurrentTarget, 0, client_baseY) * client_baseY_Multiplier;
+  Plane := SmartGetFieldInt(SmartCurrentTarget, 0, client_plane) * client_plane_Multiplier;
+  Position := R_GetTileGlobal;
+  Position := Point(Position.X - BaseX, Position.Y - BaseY);
+  Distance := Round(Distance / 2);
+  for X := Position.X - Distance to Position.X + Distance do begin
+    for Y := Position.Y - Distance to Position.Y + Distance do begin
+      SetLength(TempArray, 0);
+      TempArray := R_GetGroundItemsAt(Point(BaseX + X, BaseY + Y));
+      L := Length(TempArray);
+      if (L > 0) then begin
+        SetLength(Result, Length(Result) + L);
+        H := Length(Result);
+        for I := 0 to High(TempArray) do begin
+          Result[H - L + I] := TempArray[I];
+        end;
+      end;
+    end;
+  end;
+end;  

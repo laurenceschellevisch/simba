@@ -1,0 +1,692 @@
+type
+  TPoint3D = record
+    x, y, z: Extended;
+  end;
+
+  TRotation = TPoint3D;
+  ATPoint3D = Array of TPoint3D;
+
+  TMatrix = record
+    Data: Array of Extended;
+  end;
+
+  TScene = record
+    TilePosition, PlayerTile, CameraPosition: TPoint3D;
+    TileRotation, CameraRotation: TRotation;
+  end;
+
+var
+  CURVESIN, CURVECOS: TIntegerArray;
+
+(*
+R_SetupCurves
+~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    procedure SetupCurves;
+
+Initializes the Sin and Cos curve arrays for R_TileToMSEx.
+
+.. note::
+
+  by Frement
+
+*)
+procedure R_SetupCurves;
+var
+  I: Integer;
+begin
+  SetLength(CURVESIN, 2048);
+  SetLength(CURVECOS, 2048);
+  for I := 0 to 2047 do begin
+    CURVESIN[I] := Round(65536.0 * Sin(I * 0.0030679614999999999));
+    CURVECOS[I] := Round(65536.0 * Cos(I * 0.0030679614999999999));
+  end;
+end;
+
+(*
+R_GetCameraPitch
+~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function R_GetCameraPitch: Extended;
+
+Returns pitch of the camera.
+
+.. note::
+
+  by Frement
+
+*)
+function R_GetCameraPitch: Extended;
+begin
+  Result := (SmartGetFieldInt(SmartCurrentTarget, 0, client_cameraPitch) * client_cameraPitch_Multiplier);
+end;
+
+(*
+R_GetCameraYaw
+~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function R_GetCameraYaw: Extended;
+
+Returns yaw of the camera.
+
+.. note::
+
+  by Frement
+
+*)
+function R_GetCameraYaw: Extended;
+begin
+  Result := (SmartGetFieldInt(SmartCurrentTarget, 0, client_cameraYaw) * client_cameraYaw_Multiplier);
+end;
+
+(*
+R_GetCameraX
+~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function R_GetCameraX: Extended;
+
+Returns local position of camera on X-axis.
+
+.. note::
+
+  by Frement
+
+*)
+function R_GetCameraX: Extended;
+begin
+  Result := (SmartGetFieldInt(SmartCurrentTarget, 0, client_cameraX) * client_cameraX_Multiplier);
+end;
+
+(*
+R_GetCameraY
+~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function R_GetCameraY: Extended;
+
+Returns local position of camera on Y-axis.
+
+.. note::
+
+  by Frement
+
+*)
+function R_GetCameraY: Extended;
+begin
+  Result := (SmartGetFieldInt(SmartCurrentTarget, 0, client_cameraY) * client_cameraY_Multiplier);
+end;
+
+(*
+R_GetCameraZ
+~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function R_GetCameraZ: Extended;
+
+Returns local position of camera on Z-axis.
+
+.. note::
+
+  by Frement
+
+*)
+function R_GetCameraZ: Extended;
+begin
+  Result := (SmartGetFieldInt(SmartCurrentTarget, 0, client_cameraZ) * client_cameraZ_Multiplier);
+end;
+
+(*
+R_GetMinimapAngleDeg
+~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function R_GetMinimapAngleDeg: extended;
+
+Returns the current Map angle in degrees. North: 0 deg, increases in the
+counter clockwise direction
+
+.. note::
+
+  by BenLand100
+
+*)
+function R_GetMinimapAngleDeg: extended;
+begin
+  Result := (SmartGetFieldInt(SmartCurrentTarget, 0, client_cameraYaw) * client_cameraYaw_Multiplier / 2048.0 * 360);
+end;
+
+(*
+R_GetMinimapAngleRad
+~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function R_GetMinimapAngleRad: extended;
+
+Returns the current Map angle in radians. North: 0 deg, increases in the
+counter clockwise direction
+
+.. note::
+
+  by BenLand100
+
+*)
+function R_GetMinimapAngleRad: extended;
+begin
+  Result := Radians((SmartGetFieldInt(SmartCurrentTarget, 0, client_cameraYaw) * client_cameraYaw_Multiplier / 2048.0 * 360));
+end;
+
+(*
+R_MakeCompass
+~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function R_MakeCompass(Direction: Variant): Boolean;
+
+Aligns RS to specified direction
+   - Enter a compass angle ('n', 's', 'e', 'w') or degree (23.3, 25, 205.2)
+      and it will move the compass to that angle. Also accepts 'random',
+      and 'rand' to make the compass a random direction.
+    - Uses Reflection.
+
+.. note::
+
+    by Nielsie95 & Nava2
+    Modified by Krazy_Meerkat
+
+Example:
+
+.. code-block:: pascal
+
+    // using a string!
+    R_MakeCompass('N');
+
+    // using an integer!
+    R_MakeCompass(0);
+
+*)
+
+// Helper function for MakeCompass to clean up code
+// Compares Angle and DirectionDeg to see how far away it is
+function R_MakeCompass_MinCheck(Angle, DirectionDeg: Extended): Extended;
+begin
+  Result := MinE(Abs(Angle - (DirectionDeg + 360)), Abs((Angle + 360) - DirectionDeg));
+  Result := MinE(Abs(Angle - DirectionDeg), Result);
+end;
+
+function R_MakeCompass(Direction: Variant): Boolean;
+var
+  StartAngle, Angle, DirectionDeg, i: Extended;
+  Left: Boolean;
+  Mark: Integer;
+begin
+  Result := False;
+  StartAngle := (360-R_GetMinimapAngleDeg);
+  if ((StartAngle < 0) or (not LoggedIn)) then Exit;
+
+  // convert from variant to direction:
+  DirectionDeg := R_VariantToDirection(Direction);
+
+  if (R_MakeCompass_MinCheck(StartAngle, DirectionDeg) <= 8.0) then
+  begin
+    Result := True;
+    Exit;
+  end;
+  Left := (Round((360 - StartAngle) + DirectionDeg) mod 360 <= Round((StartAngle + 360) - DirectionDeg) mod 360);
+  KeyDown((Ord(not Left) * 2) + 37);
+  Wait(10);
+  MarkTime(Mark);
+  i := 0.0;
+  repeat
+    Wait(16);
+    Angle:= (360-R_GetMinimapAngleDeg);
+    if (((TimeFromMark(Mark) > 6000)  and (i < 1.0)) or
+        ((TimeFromMark(Mark) > 10000) and (i < 2.0)) or
+        ((TimeFromMark(Mark) > 14000) and (i < 3.0))) then
+    begin
+      i := i + 1.0;
+    end;
+   // TODO: simplify the maths?
+  until ((Angle < 0) or
+    (TimeFromMark(Mark) > 14000) or
+    (R_MakeCompass_MinCheck(Angle, DirectionDeg) <= (7.0 + i)));
+  if Left then
+    KeyUp(VK_Left)
+  else
+    KeyUp(VK_Right);
+  Wait(10);
+  Result := (R_MakeCompass_MinCheck(Angle, DirectionDeg) <= (7.0 + i));
+end;
+
+(*
+R_GetTileGlobal
+~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function R_GetTileGlobal: TPoint;
+
+Returns the current location of player.
+
+.. note::
+
+  by Brandon
+
+*)
+function R_GetTileGlobal: TPoint;
+var
+  Me: Integer;
+begin
+  Me := SmartGetFieldObject(SmartCurrentTarget, 0, Client_LocalPlayer);
+  Result.X := (SmartGetFieldInt(SmartCurrentTarget, 0, client_baseX) * client_baseX_Multiplier) + (SmartGetFieldInt(SmartCurrentTarget, Me, Actor_WorldX) * Actor_WorldX_Multiplier) div 128;
+  Result.Y := (SmartGetFieldInt(SmartCurrentTarget, 0, client_baseY) * client_baseY_Multiplier) + (SmartGetFieldInt(SmartCurrentTarget, Me, Actor_WorldY) * Actor_WorldY_Multiplier) div 128;
+  SmartFreeObject(SmartCurrentTarget, Me);
+end;
+
+(*
+R_RotateCameraToTile
+~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function R_RotateCameraToTile(Tile: Tpoint): Boolean;
+
+Rotates the camera position to face Tile.
+
+.. note::
+
+  Sourced from PowerBot, Modified by Krazy_Meerkat
+
+*)
+function R_RotateCameraToTile(Tile: Tpoint): Boolean;
+var
+  angle: Extended;
+  Me: TPoint;
+begin
+  Me:= R_GetTileGlobal;
+  angle:= (Degrees(ArcTan2(Tile.y - Me.y, Tile.x - Me.x))) - 90;
+  if (angle < 0) then
+  begin
+      angle:= 360 + angle;
+  end;
+  angle:= 360 - angle;
+  Result:= R_MakeCompass(angle);
+end;
+
+(*
+R_DistanceFromTile
+~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function R_DistanceFromTile(Tile: TPoint): integer;
+
+Returns distance from given tile.
+
+.. note::
+
+  by elfyyy
+
+*)
+function R_DistanceFromTile(Tile: TPoint): integer;
+var
+  Loc: TPoint;
+begin
+  Loc := Point(R_GetTileGlobal.x, R_GetTileGlobal.y);
+  if (Tile.x > 20000) or (Tile.y > 20000) or (Tile.x < -20000) or (Tile.y < -20000) then
+    exit;
+  Result :=  Distance(Tile.x, Tile.y, Loc.x, Loc.y);
+end;  
+
+(*
+R_NearTile
+~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function R_NearTile(Tile: TPoint; Distance: Integer): Boolean;
+
+Returns true if player is within the distance specified to the tile.
+
+.. note::
+
+  by elfyyy
+
+*)
+function R_NearTile(Tile:Tpoint; Dist:integer):Boolean;
+begin
+  Result := R_DistanceFromTile(Tile) < Dist;
+end;
+
+(*
+R_inPolygon
+~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function R_inPolygon(Area: TPointArray): Boolean;
+
+Checks if inside a area that's not a box specified by the Tpa
+
+.. note::
+
+    By: Felipe Monteiro de Carvalho, modified by Officer Barbrady
+
+*)
+function R_inPolygon(Area: TPointArray): Boolean;
+var
+  xnew, ynew, xold, yold, x1, y1, x2, y2: Cardinal;
+  i, numpoints, inside, X, Y: Integer;
+begin
+  numpoints := Length(Area);
+  X := R_GetTileGlobal.x;
+  Y := R_GetTileGlobal.y;
+  if (numpoints < 3) then
+    Exit;
+  xold := Area[numpoints - 1].X;
+  yold := Area[numpoints - 1].Y;
+  for i := 0 to (numpoints - 1) do
+  begin
+    xnew := Area[i].X;
+    ynew := Area[i].Y;
+    if (xnew > xold) then
+    begin
+      x1 := xold;
+      x2 := xnew;
+      y1 := yold;
+      y2 := ynew;
+    end
+    else
+    begin
+      x1 := xnew;
+      x2 := xold;
+      y1 := ynew;
+      y2 := yold;
+    end;
+    if (((xnew < X) = (X <= xold)) and ((Y - y1) * (x2 - x1) < (y2 - y1) * (X - x1))) then
+      inside := not inside;
+    xold := xnew;
+    yold := ynew;
+  end;
+  Result := inside <> 0;
+end;
+
+(*
+R_OnTile
+~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function R_OnTile(TP:Tpoint):Boolean;
+
+Returns true if player is on the tile specified.
+
+.. note::
+
+  by elfyyy
+
+*)
+function R_OnTile(TP: Tpoint):Boolean;
+var
+  Loc: TPoint;
+begin
+  Loc := R_GetTileGlobal;
+  Result := (Loc.X = TP.X) and (Loc.Y = TP.Y);
+end;
+
+(*
+R_TileToMM
+~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function R_TileToMM(tile: TPoint): TPoint;
+
+Converts the global tile position to a screen location on the
+  minimap, taking map rotation into account.
+
+.. note::
+
+  by BenLand100, Modified by Krazy_Meerkat
+
+*)
+function R_TileToMM(tile: TPoint): TPoint;
+var
+  Angle, x, y: extended;
+  temp: TPoint;
+begin
+  Angle := -R_GetMinimapAngleRad;
+  temp := R_GetTileGlobal;
+  x := (tile.x - temp.x) * 4 - 2;
+  y := (temp.y - tile.y) * 4 - 2;
+  result.x := round((x * cos(angle)) + (y * sin(angle))) + 643;
+  result.y := round((y * cos(angle)) - (x * sin(angle))) + 83;
+end;
+
+(*
+R_GetTileHeight
+~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function R_GetTileHeight(tile: TPoint) : integer;
+
+Finds the average height of the global tile provided the tile is in the current
+loading area and on a loaded plane.
+
+.. note::
+
+  by BenLand100, Modified by Brandon
+
+*)
+function R_GetTileHeight(tile: TPoint): integer;
+var
+  x, y, CurPlane, GroundSetting: integer;
+begin
+  x := tile.x - SmartGetFieldInt(SmartCurrentTarget, 0, client_baseX) * client_baseX_Multiplier;
+  y := tile.y - SmartGetFieldInt(SmartCurrentTarget, 0, client_baseY) * client_baseY_Multiplier;
+  if ((x < 0) or (x > 104) or (y < 0) or (y > 104)) then
+  begin
+    result := 0;
+    exit;
+  end;
+  CurPlane := SmartGetFieldInt(SmartCurrentTarget, 0, Client_Plane) * Client_Plane_Multiplier;
+  GroundSetting := SmartGetFieldArray3DByte(SmartCurrentTarget, 0, Client_TileSettings, 1, X, Y);
+  if ((CurPlane < 3) and ((GroundSetting and 2) <> 0)) then
+    CurPlane := CurPlane + 1;
+  Result := SmartGetFieldArray3DInt(SmartCurrentTarget, 0, Client_TileHeights, curPlane, x, y)
+  + SmartGetFieldArray3DInt(SmartCurrentTarget, 0, Client_TileHeights, curPlane, x + 1, y)
+  + SmartGetFieldArray3DInt(SmartCurrentTarget, 0, Client_TileHeights, curPlane, x, y + 1)
+  + SmartGetFieldArray3DInt(SmartCurrentTarget, 0, Client_TileHeights, curPlane, x + 1, y + 1);
+  Result := - Result div 4;
+end;
+
+(*
+R_IsWalking
+~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function R_IsWalking: Boolean;
+
+Returns true if we are walking
+
+.. note::
+
+  by elfyyy
+
+*)
+function R_IsWalking: Boolean;
+var
+  first, second: Tpoint;
+begin
+  first := R_GetTileGlobal;
+  wait(800);
+  second := R_GetTileGlobal;
+  result := (first.X <> second.X) and (first.Y <> second.Y);
+end;
+
+(*
+ashr
+~~~~
+
+.. code-block:: pascal
+
+    function ashr(x: Integer; d: Byte): Integer;
+
+Performs an arithmetic shift right.
+
+.. note::
+
+  by Dgby714
+
+*)
+function ashr(x: Integer; d: Byte): Integer;
+var
+  Bit: Integer;
+  I: Integer;
+begin
+  Bit := (1 shl 31) and x;
+  Result := x;
+
+  for I := 1 to d do
+    Result := (Result shr 1) or Bit;
+end;
+
+(*
+R_TileToMSEx
+~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function R_TileToMSEx(X, Y, Height: Extended): TPoint;
+
+Converts a tile position in the world with a height, to a point on screen.
+
+.. note::
+
+  by Frement
+
+*)
+function R_TileToMSEx(X, Y, Height: Extended): TPoint;
+var
+  Z, CurveX, CurveY, CurveCosX, CurveCosY, CurveSinX, CurveSinY, TempCalculation: Extended;
+  CalculatedScreenPosX, CalculatedScreenPosY: Integer;
+begin
+  if (X < 128) or (Y < 128) or (X > 13056) or (Y > 13056) then begin
+    Result := Point(-1, -1);
+    Exit;
+  end;
+  Z := -Height;
+  X := X - R_GetCameraX;
+  Y := Y - R_GetCameraY;
+  Z := Z - R_GetCameraZ;
+  CurveX := R_GetCameraYaw;
+  CurveY := R_GetCameraPitch;
+  CurveCosX := CURVECOS[Floor(CurveX)];
+  CurveCosY := CURVECOS[Floor(CurveY)];
+  CurveSinX := CURVESIN[Floor(CurveX)];
+  CurveSinY := CURVESIN[Floor(CurveY)];
+  TempCalculation := ashr(Round((CurveCosX * X) + (Y * CurveSinX)), 16);
+  Y := ashr(Round((Y * CurveCosX) - (X * CurveSinX)), 16);
+  X := Round(TempCalculation);
+  TempCalculation := ashr(Round((Z * CurveCosY) - (Y * CurveSinY)), 16);
+  Y := ashr(Round((Z * CurveSinY) - ((-CurveCosY) * Y)), 16);
+  Z := Round(TempCalculation);
+  if (Y < 50) then begin
+    Result := Point(-1, -1);
+    Exit;
+  end else begin
+    CalculatedScreenPosX := Round((((Floor(X) shl 9) / Y)));
+    IncEx(CalculatedScreenPosX, 256);
+    CalculatedScreenPosY := Round((((Floor(Z) shl 9) / Y)));
+    IncEx(CalculatedScreenPosY, 167);
+    Result := Point(CalculatedScreenPosX, CalculatedScreenPosY);
+  end;
+end;
+
+(*
+R_TileToMS
+~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function R_TileToMS(X, Y, Height: Extended): TPoint;
+
+Converts a tile to a point on screen.
+
+.. note::
+
+  by Frement
+
+*)
+function R_TileToMS(Tile: TPoint): TPoint;
+var
+  X, Y, Height: Integer;
+begin
+  X := Round((Tile.X - (SmartGetFieldInt(SmartCurrentTarget, 0, client_baseX) * client_baseX_Multiplier) + 0.5) * 128);
+  Y := Round((Tile.Y - (SmartGetFieldInt(SmartCurrentTarget, 0, client_baseY) * client_baseY_Multiplier) + 0.5) * 128);
+  Height := R_GetTileHeight(Tile);
+  Result := R_TileToMSEx(X, Y, Height);
+  if (not PointInBox(Result, MSBox)) then
+    Result := Point(-1, -1);
+end;
+
+(*
+R_TileOffsetToMS
+~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function R_TileOffsetToMS(X, Y, Height: Extended): TPoint;
+
+Converts a tile to a point on screen with Parameters for offsets.
+
+.. note::
+
+  by Frement
+
+*)
+function R_TileOffsetToMS(Tile: TPoint; XOffset, YOffset, ZOffset: Integer): TPoint;
+var
+  X, Y, Z: Integer;
+begin
+  X := Round((Tile.X - (SmartGetFieldInt(SmartCurrentTarget, 0, client_baseX) * client_baseX_Multiplier) + 0.5) * 128) + XOffset;
+  Y := Round((Tile.Y - (SmartGetFieldInt(SmartCurrentTarget, 0, client_baseY) * client_baseY_Multiplier) + 0.5) * 128) + YOffset;
+  Z := R_GetTileHeight(Tile) + ZOffset;
+  Result := R_TileToMSEx(X, Y, Z);
+end;
+
+
+(*
+R_TileToMSHeight
+~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function R_TileToMSHeight(Tile: Tpoint; Height: integer): TPoint;
+
+Converts a tile to a point on screen with a parameter for height
+above given tile.
+
+.. note::
+
+  by elfyyy
+
+*)
+function R_TileToMsHeight(Tile: Tpoint; Height: integer): Tpoint;
+begin
+  Result := R_TileOffsetToMS(Tile, 0, 0, Height);
+end;

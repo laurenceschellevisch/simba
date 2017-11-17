@@ -1,0 +1,21 @@
+{* R_PrisonPeteSolve
++Detection and solving
++By: Krazy_Meerkat
++
++*}
+
+function R_DetectPrisonPete: Boolean;
+var
+  me: Tpoint;
+begin
+  result:= false;
+  me:= R_GetTileGlobal;
+  if (((me.x > 2075) and (me.x < 2096)) and ((me.y > 4458) and (me.y < 4474))) then
+    result:= true;
+end;
+
+function R_SolvePrisonPete: Boolean; //Not solved
+begin
+  result:= false;
+  writeln('[Reflection Anti-Randoms] Solver not finished.');
+end;

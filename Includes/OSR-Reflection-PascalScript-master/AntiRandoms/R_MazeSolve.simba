@@ -1,0 +1,21 @@
+{* R_MazeSolve
++Detection and solving
++By: Krazy_Meerkat
++
++*}
+
+function R_DetectMaze: Boolean;
+var
+  me: Tpoint;
+begin
+  result:= false;
+  me:= R_GetTileGlobal;
+  if (((me.x > 12046) and (me.x < 12098)) and ((me.y > 3342) and (me.y < 3394))) then  //Maze center co-ords: (12072, 3368)
+    result:= true;
+end;
+
+function R_SolveMaze: Boolean; //Not solved
+begin
+  result:= false;
+  writeln('[Reflection Anti-Randoms] Solver not finished.');
+end;

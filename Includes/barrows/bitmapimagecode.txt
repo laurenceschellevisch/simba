@@ -1,0 +1,47 @@
+Program ChopTree;
+{$i srl-6/SRL.simba}
+
+var
+  Drop:Integer;
+
+Procedure DropLog;
+var
+  X,Y:Integer;
+
+begin
+if FindColorTolerance(X, Y, 4835530, 457, 208, 731, 455, 5) then
+
+begin
+  MoveMouse(x, y);
+  Wait(250);
+  ClickMouse(X, Y, mouse_Right);
+  Wait(4050);
+    if FindBitmapIn(Drop, X, Y, 457, 208, 731, 455) then
+
+    begin
+      MoveMouse(x, y);
+      Wait(250);
+      ClickMouse(X, Y, mouse_Left)
+    end;
+
+  end;
+
+end;
+Begin
+MouseSpeed := 15;
+
+   Drop := BitmapFromString(148, 15, 'meJztlVtuxCAMRVla/7KB/s6eu' +
+        'uO0GjTWrR+3FyWQURXkD2Ic/DiAt8/HNiL7c7TWdONuL/5yy1QZAt' +
+        'Fe4/Kw/5/Y1Zjt6ONr7zJ1/5WlW+DRXKS++oM2G193/eNoXr7mYgG' +
+        '1NR5tf6ub82XNax4+jGEbfHLfp5KLPbqiKeymRvLmlRwNcg074itl' +
+        't8NAy7Q5VnqlMtYEcUlXxiWXbLRHfVx155z3aMWFokw/K3Zow9lZL' +
+        'viJmCq9gi++5y7N+GLEjumS4vbROK7GGCp8lYEeP7lcnJ1BqdhhY0' +
+        'pXyXwIn7s1LnHRsko8nXPiZOeUXXVl/oSCYZzOzuI8l51e+eqGioy' +
+        'Os0vjEYmQg4eW/FimO3RZwM7OZBq5nvtBXpezazAcEYuEbOKObns1' +
+        'qaq7YajEMurTNBGc8hKmO/ADmerjaTmRHfFCjFGPP0ay5MC038NRd' +
+        'j9GS0RWgXP/kj1tVbcU9TGvOBHneki6cTqv8PE666L0uFuOyFmkot' +
+        'zsLpRvyhFxYQ==');
+
+DropLog;
+FreeBitmap(Drop);
+end.

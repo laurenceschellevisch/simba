@@ -1,0 +1,11 @@
+{$include SRL-OSR/SRL/Reflection/Core/Hooks.simba}
+{$include SRL-OSR/SRL/Reflection/Core/Misc.simba}
+{$include SRL-OSR/SRL/Reflection/Core/Tiles.simba}
+{$include SRL-OSR/SRL/Reflection/Core/MapWalk.simba}
+{$include SRL-OSR/SRL/Reflection/Core/Npc.simba}
+{$include SRL-OSR/SRL/Reflection/Core/Player.simba}
+{$include SRL-OSR/SRL/Reflection/Core/Objects.simba}
+{$include SRL-OSR/SRL/Reflection/Core/GroundItems.simba}
+{$include SRL-OSR/SRL/Reflection/Core/Interaction.simba}
+{$include SRL-OSR/SRL/Reflection/Core/Widgets.simba}
+{$include SRL-OSR/SRL/Reflection/AntiRandoms/AntiRandoms.simba}

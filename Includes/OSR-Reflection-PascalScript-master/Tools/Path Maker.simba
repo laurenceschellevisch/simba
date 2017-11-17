@@ -1,0 +1,81 @@
+program ReflPathMaker;
+{$DEFINE SMART8}
+{$I SRL-OSR/SRL.Simba}
+{$I SRL-OSR\SRL\misc\SmartGraphics.simba}
+{$I SRL-OSR/SRL/Reflection/Reflection.simba}
+
+{*
+This Tool makes a path, printing out points into an array for easy copying.
+Now... go to your point that you want to walk to and click ENABLE SMART.
+NOW DONT PRESS ANYTHING! Smart will disable itself again automatically.
+It will then print out your position and store it to a tile array/point array.
+
+Next, Move to your next spot. ENABLE SMART again...
+it will save that spot to the array and print it out again.
+
+By: Turpinator
+
+*}
+
+const
+{how randy do you like it?}
+randy = 0;
+
+Procedure DeclarePlayers;
+begin
+  HowManyPlayers := 1;
+  NumberOfPlayers(HowManyPlayers);
+  CurrentPlayer := 0;
+end;
+
+function TPAPathToString(TPA: TPointArray): String;
+var
+i : integer;
+begin
+  result := '';
+  for i := 0 to length(TPA) - 1 do
+    result := result + ' Point(' + intToStr(TPA[i].X) + ', ' + intToStr(TPA[i].Y) + '),';
+  result[1] := '[';
+  result[length(result)] := ']';
+end;
+
+function TPAPathToStringRandom(TPA: TPointArray; ran: integer): String;
+var
+i : integer;
+ranstr: string;
+begin
+  result := '';
+  ranstr := ' + RandomRange(' + IntToStr(iAbs(ran)*-1) + ', ' + IntToStr(iAbs(ran)) + ')';
+  for i := 0 to length(TPA) - 1 do
+    result := result + ' Point(' + intToStr(TPA[i].X) + ranstr + ', ' + intToStr(TPA[i].Y) + ranstr + '),';
+  result[1] := '[';
+  result[length(result)] := ']';
+end;
+
+var
+  path : TPointArray;
+begin
+  DeclarePlayers;
+  SetupSRL;
+  setlength(path, 0);
+  SmartSetEnabled(SmartCurrentTarget, false);
+  repeat
+    wait(500);
+  until LoggedIn;
+  if not LoggedIn then TerminateScript;
+  repeat
+    if SmartEnabled(SmartCurrentTarget) then
+    begin
+      SmartSetEnabled(SmartCurrentTarget, false);
+      setlength(path, length(path) + 1);
+      path[length(path) - 1] := R_GetTileGlobal;
+      ClearDebug;
+      if randy > 0 then
+        writeln(TPAPathToStringRandom(path, randy))
+      else
+        writeln(TPAPathToString(path));
+      wait(2000);
+    end;
+    wait(100);
+  until false;
+end.

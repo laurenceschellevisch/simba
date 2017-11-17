@@ -1,0 +1,458 @@
+(*
+Drill Demon
+===========
+
+Stores all the routines to solve the Drill Demon random.  None of these routines
+should be used throughout scripts.  They only need to be called in SRL's random
+detection methods.
+
+This solver uses Deformed BMPs to locate the signs
+to solve the Drill Demon (Sergeant Damien) random.
+
+*)
+
+procedure DD_Message(Message: String);
+begin
+  addToSRLLog('[DemonDrill Random] ' + Message);
+end;
+
+function DD_Detect(): Boolean;
+begin
+  if (not TabExists(TAB_OPTIONS)) and (not TabExists(TAB_EMOTES)) then
+    Result := (GetMusic = 'CorPoral Punisbment');
+end;
+
+(**
+ * Author: DannyRS
+ * Last Modified: 17/03/2013 - DannyRS
+ * Description: Moves the player back to the center of the random
+ * Note: Inspired by Le Jingle
+ *)
+function DD_ResetPosition: Boolean;
+var
+  WallTPA: TPointArray;
+  WallATPA: T2DPointArray;
+  tb: TBox;
+  p: TPoint;
+  //pa: TPointArray;
+begin
+  Result := False;
+
+  if (not LoggedIn) then Exit;
+
+  SetColorToleranceSpeed(1);
+  SetToleranceSpeed2Modifiers(0.02, 0.02);
+  FindColorsTolerance(WallTPA, 15593957, 600, 58, 690, 110, 70);
+  SplitTPAExWrap(WallTPA, 5, 5, WallATPA);
+  SortATPASize(WallATPA, True);
+
+  if (Length(WallATPA) < 1) then Exit;
+
+  //SMART_DrawBoxEx(True, False, WallATPA[0], clGreen);
+
+  tb := GetTPABounds(WallATPA[0]);
+  p := MiddleBox(tb);
+
+  //Seems white alone is accurate enough to leave this out - Danny
+  //pa := GetMiniMapDots('yellow');
+  //if (Length(pa) < 1) then Exit;
+  //if (not PointInBox(pa[0], tb)) then Exit;
+
+  MMouse(p.x, RandomRange(p.y, p.y + 2), 0, 0);
+  ClickMouse2(mouse_left);
+
+  Wait(RandomRange(300, 400));
+  Flag;
+  Wait(RandomRange(800, 1200));
+
+  Result := True;
+end;
+
+function DD_TalkingToDemon: Boolean;
+begin
+  Result := (Trim(GetNPCChatName) = 'SergeantDamien');
+end;
+
+(**
+ * Author: DannyRS
+ * Last Modified: 17/03/2013 - DannyRS
+ * Description: Talks to Sergeant Damien
+ *)
+function DD_TalkDemon: Boolean;
+var
+  DemonTPA: TPointArray;
+  DemonATPA: T2DPointArray;
+  x, y, i, Attemps: Integer;
+begin
+  Result := False;
+
+  if (DD_TalkingToDemon) then
+  begin
+    Result := True;
+    Exit;
+  end;
+
+  repeat
+
+    if (Attemps > 6) then Break;
+
+    SetColorToleranceSpeed(2);
+    SetToleranceSpeed2Modifiers(0.15, 1.61);
+    FindColorsTolerance(DemonTPA, 994406, MSX1, MSY1, MSX2, MSY2, 16);
+    SplitTPAExWrap(DemonTPA, 50, 100, DemonATPA);
+    SortATPASize(DemonATPA, True);
+
+    if (Length(DemonATPA) < 1) then
+    begin
+      Attemps := Attemps + 1;
+      Wait(RandomRange(200, 400));
+      Continue;
+    end;
+
+    for i := 0 to High(DemonATPA) do
+    begin
+      if (Length(DemonATPA[i]) < 50) then Continue;
+      MiddleTPAEx(DemonATPA[i], x, y);
+      MMouse(RandomRange(x - 5, x + 5), RandomRange(y - 5, y + 5), 0, 0);
+      ClickMouse2(mouse_right);
+      Wait(RandomRange(30, 50));
+      if (ChooseOptionMulti(['Talk','alk-to'])) then
+      begin
+        if (WaitFunc(@DD_TalkingToDemon, 50, 25000)) then
+        begin
+          DD_Message('[DD_TalkDemon] Talked to demon');
+          Result := True;
+          Exit;
+        end else
+          DD_Message('[DD_TalkDemon] Failed to Talked to demon');
+      end;
+    end;
+    Attemps := Attemps + 1;
+
+  until (Result) or (Attemps > 6);
+end;
+
+(**
+ * Author: DannyRS
+ * Last Modified: 17/03/2013 - DannyRS
+ * Description: Gets the TBoxes of the green signs
+ *)
+function DD_GetSigns: TBoxArray;
+var
+  ESignsTPA: TPointArray;
+  ESignsATPA: T2DPointArray;
+  SignsSorted: Boolean;
+  i: Integer;
+begin
+  SetColorToleranceSpeed(1);
+  SetToleranceSpeed2Modifiers(0.02, 0.02);
+  FindColorsTolerance(ESignsTPA, 4553552, MSX1, MSY1, MSX2, MSY2, 30);
+  SplitTPAExWrap(ESignsTPA, 70, 60, ESignsATPA);
+
+  repeat
+    SignsSorted := True;
+    for i := 0 to High(ESignsATPA) do
+    begin
+      if (Length(ESignsATPA[i]) < 5) then
+      begin
+        DeleteValueInATPA(ESignsATPA,i);
+        SignsSorted := False;
+        Break;
+      end;
+    end;
+  until (SignsSorted);
+
+  SetLength(Result, Length(ESignsATPA));
+
+  for i := 0 to high(ESignsATPA) do
+  begin
+    Result[i] := GetTPABounds(ESignsATPA[i]);
+  end;
+
+  DD_Message('[DD_GetSigns] Number of signs located : ' +
+      IntToStr(Length(ESignsATPA)));
+end;
+
+(**
+ * Author: DannyRS
+ * Last Modified: 17/03/2013 - DannyRS
+ * Description:
+ *  Compares bitmaps to the signs and tries to
+ *  return it's position, roughly centered
+ *)
+function DD_FindSign(WhichSign: String): TPoint;
+var
+  SB: TBoxArray;
+  x, y, i, ib, hb: Integer;
+  Saccuracy: Extended;
+  SBMP: TIntegerArray;
+begin
+  Result := Point(-1, -1);
+
+  SB := DD_GetSigns;
+  if (Length(SB) < 1) then Exit;
+
+  SetLength(SBMP, 5);
+
+  hb := High(SBMP);
+
+  SetColorToleranceSpeed(1);
+  SetToleranceSpeed2Modifiers(0.02, 0.02);
+
+  case LowerCase(WhichSign) of
+    'jog':        begin
+                    SBMP[0] := BitmapFromString(14, 15, 'meJxzrw1KnFAOQe5IbAgXDRGvEo' +
+                    '6y5zQDEVw7Vlk4wm8UmktooRJNMS4PojkVlxq4p5BDDKsaTBuRVWI' +
+                    'qw2UvVmUE44VaiolMEkAEAE9f+0k=');
+                    SBMP[1] := BitmapFromString(26, 17, 'meJxzqwl0w0AJfWUQhMYmD2E1jR' +
+                    'IDIShrdhMQwa2grmlkGwgxB4IodxVaMFLXNGQDKYwRNM+SHcvIQQf' +
+                    'XS57b0CICOQVSYhSmH8k2jSrxOJhNc0PNVhQiKhYdbuQmKgBkSPbW');
+                    SBMP[2] := BitmapFromString(29, 10, 'meJxzrQ5wJRrF9ZUSr3gwGItsMh' +
+                    'qXbJQ5qxGI4EZRxViImRBjIaZRbizcTGR3UmgsmpnUCltcxlIrVKl' +
+                    'rLNxk4tUDAIc3Qs8=');
+                    SBMP[3] := BitmapFromString(14, 17, 'meJxL6C9PACP3msAEJDYmSiBaJR' +
+                    'xlzWkCIoh6girharAqhhgFQQRNQ3MzdVUi+wuPXqyuhYcbXBDNX/D' +
+                    'gxeN9zOjAqpKg77CqxONfYlRiBg7+ACcm2ImMGgCPpxvW');
+                    SBMP[4] := BitmapFromString(15, 18, 'meJxzrwl0rwlM6C+HIHdsXDSELA' +
+                    'tnE1ScNacJiPArhiOIYiCCG4JHDdxk/GaiOYl2itHU4zEBzdm4VGI' +
+                    'GHVaVmIGGK3bQVOJ3AFaV+COOFoqJTDkkRRnxMQtEANqdPtI=');
+                  end;
+    'starjumps':  begin
+                    SBMP[0] := BitmapFromString(16, 16, 'meJxzrw1yx0CJE8ohCFMKK4Krx9' +
+                    'SSu7AdiEg1H6su/GogXPwIlyHEqMSlnhhH0kg9hS6nonqsyrBqgcQ' +
+                    '7LjOJUY/VXswEhifGkZMfAK38Sfc=');
+                    SBMP[1] := BitmapFromString(33, 17, 'meJxzqwl0Ixol9JUBEfHqSUUQ8+' +
+                    'lmC4Xm5CxohSNaqMeqkSCilo+objhBu6ge0cPAClrHAi4rqGgLHZI' +
+                    'TprHUtQWXsym3Al4Q4XIwsjh5pRa8uMPjWmTzyS4Y4bbgCUZiSngA' +
+                    'a5KX0w==');
+                    SBMP[2] := BitmapFromString(37, 16, 'meJxzrQ5wJR3F9ZXCERnacaHs+S' +
+                    '34raOiXXAbIYjqJhNjKfGIPjbSx5t0C1U6RyI97Ro21tEtNdLHOuR' +
+                    'iCtN8qtuIXDBiNZlGHgQiXMbSIgbh1uGJUyKrJAA7N7QN');
+                    SBMP[3] := BitmapFromString(22, 16, 'meJxzrwl0x4YS+suBCKsUkQhiAj' +
+                    'GG5CxsgyCyTUA2BNMcklQiy+JBxFtBql785pAaCwNuAoUhgCcw6WY' +
+                    'Cpi4iDYGnXqzqiTcBiHAphovjzylwQ3B5EG4RmiEAhx+zZw==');
+                    SBMP[4] := BitmapFromString(24, 17, 'meJxzrwl0JwIl9JcDETEqCRpCuV' +
+                    'EkGZKzsA2CiDQcrh5TFy5xTF0ELcWlnngTiDeKpLCl3ARc5pAX1zR' +
+                    'yDBnmUCV4qWUOpkYijULOOATTOUFzIIiYTIE/wyKbg8e/eAoQADSU' +
+                    '910=');
+                  end;
+    'situps':     begin
+                    SBMP[0] := BitmapFromString(32, 12, 'meJxzrwl0R0U5C9uAyB1DnCoIYj' +
+                    'gdzCfPCoK6KDGfoC5kw0m1ghgtmOYTaQWRWpAVEG8+msm4tGAqI9I' +
+                    'KrBoJBiDWsCKIsJqf0F8GRJiuJcN8ZKOQDYeLE4xugobDzYewSUoY' +
+                    'xBiObD7QBABMTOo0');
+                    SBMP[1] := BitmapFromString(36, 14, 'meJxzqwl0GwQoZ0ErENHNIgrtIl' +
+                    'I73C7yrCNeL7JFZNhFkl40u0iyjiSNmBYRbxepepHVUBIaboRSMpr' +
+                    'J+O3C6gus2km1i3gE0ZvQV0aMO4lxOR4EtAWCkEXgZqJJUWIX3CKs' +
+                    'BqLJEh8pBO1C9g6dEQA0UXaL');
+                    SBMP[2] := BitmapFromString(37, 16, 'meJxzrQ5wHRwoe34LENHTLgqtI1' +
+                    '473DqybSReL7Jd5FlHkl4060i1kSSNmHaRZB2pepGVkWojmnqCGtE' +
+                    'MpyRYiLcOf8ASg4hJMJiyZFsX11cKRMhcuJkQKbgswWRDpF3I1mHa' +
+                    'BZElJpUSaRcEkZSDyLCRVPOHEwIAf3vRcQ==');
+                    SBMP[3] := BitmapFromString(33, 12, 'meJxzrwl0x0A5C9uACFOcWghiPn' +
+        '2soJEtyOaTbQV+jWhWkGELfl2Y5pNqBUFdyArIsIWgFjQFpFpBjPf' +
+        'RpEgKLqzOQ1aQ0F8ORJimYY0aggjTCoj5cCsIxj5B8zEDBG4FxBYK' +
+        'rUBzMIQNAF4A83M=');
+                    SBMP[4] := BitmapFromString(33, 13, 'meJxzrwl0x0A5C9uACFOcWghiPn' +
+        '2soJEtyOaTZwVBXWhWkGoLQS2Y5pNkCzFakBWQagUxrkJTQJJHiPQ' +
+        '7mhSuQCOIsMZIQn85EGHaTp75mK6FmA+3hZjYx4OQjSImEsk2H24F' +
+        'kEFFW5DNh9sCsQIAUoImOg==');
+                  end;
+    'pushups':    begin
+                    SBMP[0] := BitmapFromString(37, 16, 'meJxzrw1KnFAOQe61QXRAdLZuYF' +
+                    'HuwnYIoqddyIjO1tHIakwzaWc1HkNoYSlB7VQMZ+K1ELSUGHMocSF' +
+                    'J9sKLFMpjgZ6pmnaJihJ7aWcjWmTRoQrAtAsAxiXG8w==');
+                    SBMP[1] := BitmapFromString(39, 16, 'meJxzqwl0qwlM6CuDIDcwlz5oYC' +
+                    '2ls73IKGdBKwTR30ZkNCCW0tQBBG2kugOwmkZre/GbQwt7iTeEin6' +
+                    'nRAsZboCUCZSEFalpD7ksonpqHFRZntb2okUina1DthEAClrmig==');
+                    SBMP[2] := BitmapFromString(43, 16, 'meJxzrQ5wBaO4vlI4coUJ0hMhO2' +
+                    'Cg3ICJsue3ANHA2o6MBtZ2OjuGoANo6hhMk+npBjxm0scNBE2jaWg' +
+                    'QbwiNkgcZuqiSVuEFICUBOLAZh57phFqOoacb0OJ6AK3GtB0AjuAl' +
+                    '9Q==');
+                    SBMP[3] := BitmapFromString(35, 15, 'meJxL6C9P6C93rwmkNUoAW0Qfu9' +
+                    'BQzsI2+tiCiehmEdWtJtIWyu1CM4FGduHSTnUP4ldPUqjit5cYh5F' +
+                    'qHZq9kAxLhvdJsgheMtA00VJoMjGIPkXcgNgCANcMfTY=');
+                    SBMP[4] := BitmapFromString(30, 13, 'meJxL6C9P6C93rwmkOkoAm0wjw5' +
+                    'FRzsI2IKKRsciIdiZTxQo8xlJoC5ouahmOSwvlhuNXTLb7iXQGGVF' +
+                    'Ahu9oEdHEW0G2yQRtAQA8T9+u');
+                  end;
+  end;
+
+  for i := 0 to High(SB) do
+  begin
+    for ib := 0 to hb do
+    begin
+      if (Result.X > 0) or (Result.Y > 0) then Break;
+      if (SB[i].X1 > SB[i].X2) or (SB[i].Y1 > SB[i].Y2) then Continue;
+
+      if FindDeformedBitmapToleranceIn(SBMP[ib], x, y, SB[i].X1-2, SB[i].Y1-2,
+        SB[i].X2+2, SB[i].Y2+2, 2, 4, False, Saccuracy) then
+        begin
+          Result := Point(x + 20, y + 7);
+          DD_Message('[DD_FindSign] Matching sign found at : ' + ToStr(Result));
+          Break;
+        end;
+    end;
+  end;
+
+  for ib := 0 to hb do
+    FreeBitmap(SBMP[ib]);
+end;
+
+(**
+ * Author: DannyRS
+ * Last Modified: 17/03/2013 - DannyRS
+ * Description: Attemps to solve the Drill Demon random
+ *)
+function DD_Solve(): boolean;
+var
+  p: TPoint;
+  t, tmpCompass, tmpCTS, MMoves, debugColorCount: Integer;
+  tmpHM, tmpSM: Extended;
+  MatName, LastMatt: String;
+begin
+  Result := False;
+
+  if (not LoggedIn) then Exit;
+
+  t := GetSystemTime;
+
+  tmpCTS := GetColorToleranceSpeed;
+  GetToleranceSpeed2Modifiers(tmpHM, tmpSM);
+  tmpCompass := Round(rs_GetCompassAngleDegrees);
+
+  SetAngle(SRL_ANGLE_LOW);
+  MakeCompass('N');
+
+  repeat
+
+    Result := TabExists(TAB_MAGIC);
+
+    if (Result) then Break;
+
+    if (not DD_TalkDemon) then
+    begin
+      DD_ResetPosition;
+      Continue;
+    end;
+
+    Wait(RandomRange(1200, 1600));
+
+    debugColorCount := CountColor(0, MCX1, MCY1, MCX2, MCY2);
+    case debugColorCount of
+      687,988,691 : MatName := 'jog';
+      707,711     : MatName := 'starjumps';
+      569,573     : MatName := 'situps';
+      637,938,641 : MatName := 'pushups';
+      else
+      begin
+        ClickToContinue;
+        Wait(RandomRange(1200, 1500));
+        Continue;
+      end;
+    end;
+    DD_Message('[DD_Solve] Last color count: ' + inttostr(debugColorCount));
+    LastMatt := '';
+    if (LastMatt = MatName) then
+    begin
+      MMoves := 0;
+
+      DD_Message('[DD_Solve] Already standing on the matt : ' + MatName);
+      DD_Message('[DD_Solve] Using matt : ' + MatName + ' again');
+
+      repeat
+        MMouse(246, 184, 40, 30);
+        MMoves := MMoves + 1;
+        Wait(RandomRange(90, 340));
+        if (IsUpTextMultiCustom(['Use','xercise','mat'])) then
+        begin
+          ClickMouse2(mouse_right);
+          Wait(RandomRange(40, 90));
+          if (ChooseOptionMulti(['Use'])) then
+          begin
+            Wait(RandomRange(1200, 1500));
+            if (WaitFunc(@DD_TalkingToDemon, 50, 15000)) then
+            begin
+              DD_Message('[DD_Solve] Used matt successfully');
+              LastMatt := MatName;
+              Break;
+            end else
+            begin
+              DD_Message('[ERROR] Failed to use matt');
+              Break;
+            end;
+          end;
+        end;
+      until (MMoves > 10);
+
+      Continue;
+    end;
+
+    DD_Message('[DD_Solve] Walking to center to search for sign');
+
+    if (not DD_ResetPosition) then
+    begin
+      DD_Message('[ERROR] Failed to walk to center');
+      Continue;
+    end;
+
+    DD_Message('[DD_Solve] Searching for sign : ' + MatName);
+
+    p := DD_FindSign(MatName);
+
+    if (p.x < 0) or (p.y < 0) then
+    begin
+      DD_Message('[ERROR] Failed to find sign : ' + MatName);
+      Continue;
+    end;
+
+    MMoves := 0;
+
+    DD_Message('[DD_Solve] Searching for matt : ' + MatName);
+
+    repeat
+
+      MMouse(p.x - 10, p.y + 64, 50, 30);
+
+    //SMART_DrawBoxEx(True,False,IntToBox(p.x-10,p.y+64,p.x+40,p.y+94),clGreen);
+
+      MMoves := MMoves + 1;
+      Wait(RandomRange(90, 340));
+      if (IsUpTextMultiCustom(['Use','xercise','mat'])) then
+      begin
+        ClickMouse2(mouse_right);
+        Wait(RandomRange(40, 90));
+        if (ChooseOptionMulti(['Use'])) then
+        begin
+          Wait(RandomRange(1200, 1500));
+          if (WaitFunc(@DD_TalkingToDemon, 50, 15000)) then
+          begin
+            DD_Message('[DD_Solve] Used matt successfully');
+            LastMatt := MatName;
+            Break;
+          end else
+          begin
+            DD_Message('[ERROR] Failed to use matt');
+            Break;
+          end;
+        end;
+      end;
+    until (MMoves > 10);
+
+  Result := TabExists(TAB_MAGIC);
+
+  until (Result) or (GetSystemTime - t > 240000);
+
+  if (not Result) then
+  begin
+    if (GetSystemTime - t > 240000) then
+      DD_Message('[ERROR] DrillDemon solver timed out');
+  end else
+    Wait(RandomRange(1200, 1600));
+
+  SetAngle(SRL_ANGLE_HIGH);
+  MakeCompass(tmpCompass);
+
+  SetColorToleranceSpeed(tmpCTS);
+  SetToleranceSpeed2Modifiers(tmpHM, tmpSM);
+end;

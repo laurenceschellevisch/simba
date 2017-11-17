@@ -1,0 +1,96 @@
+program ObjectDTMUpdater;
+
+{$I Updater.sei}
+
+function SaveToFile(const Filename, Data: string): boolean;
+var
+  L: LongInt;
+begin
+  L := Length(Data);
+  with TFileStream.Create(Filename, fmOpenReadWrite or fmCreate) do
+  try
+    Result := (Write(Data, L) = L);
+  finally
+    Free;
+  end;
+end;
+
+function GrabRemoteExtension(var RemoteExtension: String): Boolean;
+var
+  I: Integer;
+  RemoteChecksum: String;
+begin
+
+  Result := False;
+
+  for I := 0 to 20 do
+  begin
+
+    if (Length(RemoteChecksum) <> 32) then
+      RemoteChecksum := GetPage('http://scripts.srljustin.com/euphemism/Checksum.md5');
+    RemoteExtension := GetPage('http://scripts.srljustin.com/euphemism/ObjectDTM.sex');
+
+    if (RemoteChecksum = md5(RemoteExtension)) then
+    begin
+
+      Result := True;
+      Exit;
+    end;
+  end;
+
+  WriteLn('Object DTM Extension: Failed to grab remote extension.');
+end;
+
+procedure RunTool(Sender: TObject);
+begin
+
+  case TMenuItem(Sender).Caption of
+
+    'Generation Tool':
+    begin
+
+      WriteLn('Object DTM Include: Running Object DTM Generation Tool..');
+      OpenScriptEx(IncludePath + 'ObjectDTM\Object DTM Generation Tool.simba', True);
+    end;
+  end;
+end;
+
+procedure Init;
+var
+
+  I, ODTM: integer;
+  RemoteExtension: String;
+  Names: TStringArray;
+  MenuItems: Array [0..0] of TMenuItem;
+begin
+
+  if GrabRemoteExtension(RemoteExtension) then
+  try
+    SaveToFile(ExtPath + 'ObjectDTM.sex', RemoteExtension);
+  except
+  end;
+
+  if AddUpdater('ODTM', 'http://scripts.srljustin.com/euphemism/ObjectDTM.tar.bz2', 'http://scripts.srljustin.com/euphemism/RemoteVersion.txt', IncludePath, True, True, i) then
+  begin
+
+    Names := ['Generation Tool'];
+
+    MenuItems[0] := TMenuItem.Create(UpdaterArr[ODTM].MainMenu);
+    MenuItems[0].OnClick := @RunTool;
+    MenuItems[0].Caption := Names[0];
+    UpdaterArr[ODTM].MainMenu.Insert(0, MenuItems[0]);
+  end;
+end;
+
+function GetName: string;
+begin
+  Result := 'Object DTM Updater';
+end;
+
+function GetVersion: string;
+begin
+  Result := '0.3';
+end;
+
+begin
+end.

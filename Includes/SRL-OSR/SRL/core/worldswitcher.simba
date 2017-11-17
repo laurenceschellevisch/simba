@@ -1,0 +1,602 @@
+(*
+Worldswitcher
+=============
+
+The Worldswitcher include contains all kinds of functions to control the built-in RS world switcher.
+
+.. contents::
+
+*)
+
+var
+  WorldArray: Array of Integer;
+  ArrayNumber: Integer;
+
+function Logout: Boolean; forward;
+function LogInPlayer: Boolean; forward;
+
+(*
+WorldScreen
+~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function Worldscreen: boolean;
+
+Returns true if the Worldswitcher screen is open
+
+.. note::
+
+  by Ashaman88
+
+Example:
+
+.. code-block:: pascal
+
+*)
+function WorldScreen: Boolean;
+begin
+  Result := getcolor(115,14)=1800605;
+end;
+
+(*
+ExitWorldScreen
+~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function ExitWorldscreen: boolean;
+
+Returns true if the Worldswitcher screen is closed
+
+.. note::
+
+  by Ashaman88
+
+Example:
+
+.. code-block:: pascal
+
+*)
+function ExitWorldScreen: Boolean;
+begin
+  result := not worldscreen;
+  if result then
+    exit;
+
+  mousebox(719,6,750,15,mouse_left);
+  result:=true;
+end;
+
+(*
+CurrentWorldLS
+~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function CurrentWorldLS: integer;
+
+Returns the current world at the login screen
+
+.. note::
+
+  by Ashaman88
+
+Example:
+
+.. code-block:: pascal
+
+*)
+function CurrentWorldLS: integer;
+var
+  txt :  String;
+begin
+  txt := GetTextAtExWrap(61, 465, 88, 480, 0, 5, 2, 16777215, 2, 'UpChars07');
+  result := strToIntDef(txt, 0);
+end;
+
+(*
+OpenWorldScreen
+~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function: OpenWorldScreen: Boolean;
+
+Opens the Worldswitcher screen. Returns true if it is succesfully opened.
+
+.. note::
+
+    by Ashaman88
+
+Example:
+
+.. code-block::pascal
+
+*)
+function OpenWorldScreen: Boolean;
+var
+  t: integer;
+begin
+  result := WorldScreen;
+  if result then
+    exit;
+  mousebox(13,468,98,491,mouse_left);
+  marktime(t);
+  repeat
+    wait(100);
+    if timefrommark(t)>6000 then
+      exit;
+  until WorldScreen;
+  result := WorldScreen;
+end;
+
+(*
+WorldIndexToMSPoint
+~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function WorldIndexToMSPoint(Index: Integer): TPoint;
+
+Converts the World Index (spot in World) to a Mainscreen TPoint of the Index. (Top Left)
+
+.. note::
+
+    Author: Ashaman88
+
+Example:
+
+.. code-block:: pascal
+
+    msPoint := WorldIndexToMSPoint(index);
+*)
+function WorldIndexToMSPoint(Index: Integer): TPoint;
+begin
+  Index := Index ;
+  Result := Point(200 + (Index mod 4) * 94, 61 + Floor(Index div 4) * 24);
+end;
+
+(*
+WorldIndexToMSBox
+~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function WorldIndexToMSBox(Ind: Integer): TBox;
+
+Converts the World Index (spot in World) to a Mainscreen TBox of the Index.
+
+.. note::
+
+    Author: Ashaman88
+
+Example:
+
+.. code-block:: pascal
+
+    msBox := WorldIndexToMSBox(index);
+*)
+function WorldIndexToMSBox(Index: Integer): TBox;
+var
+   P: TPoint;
+begin
+  P := WorldIndexToMSPoint(Index);
+  Result.X1 := P.X;
+  Result.Y1 := P.Y;
+  Result.X2 := Result.X1 + 82;
+  Result.Y2 := Result.Y1 + 18;
+end;
+
+(*
+WorldsOrdered
+~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function WorldsOrdered: boolean;
+
+Returns true if worlds are already ordered
+
+.. note::
+
+  by Ashaman88
+
+Example:
+
+.. code-block:: pascal
+
+*)
+function WorldsOrdered: Boolean;
+begin
+  Result := getcolor(300,8)=2851375;
+end;
+
+
+(*
+OrderWorlds
+~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    Procedure OrderWorlds(by: string; Descending: boolean);
+
+Orders worlds by 'by' in order 'Descending'
+
+..note::
+
+    by Ashaman88
+
+Example:
+
+.. code-block:: pascal
+
+*)
+Function OrderWorlds: boolean;
+begin
+  if not worldscreen then
+    exit;
+
+  mousebox(297,8,306,13,mouse_left);
+  result:=true;
+end;
+
+(*
+FullWorld
+~~~~~~~~~
+
+.. code-block:: pascal
+
+    function FindWorld(W: integer): Boolean;
+
+returns true if world is full
+
+..note::
+
+    by Ashaman88
+
+Example:
+
+.. code-block:: pascal
+
+*)
+function FullWorld(World: Integer): boolean;
+var
+  txt: string;
+  checkbox: tbox;
+  i: integer;
+begin
+  if Length(WorldArray) < 1 then
+    worldarray :=
+    [301,320,343,366,+
+     302,321,344,367,+
+     303,322,345,368,+
+     304,325,346,369,+
+     305,326,349,370,+
+     306,327,350,373,+
+     308,328,351,374,+
+     309,329,352,375,+
+     310,330,353,376,+
+     311,333,354,377,+
+     312,334,357,378,+
+     313,335,358,381,+
+     314,336,359,382,+
+     316,337,360,383,+
+     317,338,361,384,+
+     318,341,362,393,+
+     319,342,365,394]; 
+  for i:=0 to high(worldarray) do
+  begin
+    if worldarray[i]=World then
+      break;
+  end;
+  checkbox := WorldIndexToMSBox(i);
+  txt := GetTextAtExWrap(checkbox.x1+45, checkbox.y1, checkbox.x2-16, checkbox.y2, 0, 4, 2, 16777215, 0, 'StatChars07');
+  result:= arrinstr(['FULL','ENLL','FNLL','EULL'],txt);
+end;
+
+(*
+FindWorld
+~~~~~~~~~
+
+.. code-block:: pascal
+
+    function FindWorld(W: integer): Boolean;
+
+returns world box if world was found.
+
+..note::
+
+    by Ashaman88
+
+Example:
+
+.. code-block:: pascal
+
+*)
+function FindWorld(W: integer): TBox;
+begin
+  result:=inttobox(0,0,0,0);
+  if not WorldScreen then
+    Exit;
+
+  if not WorldsOrdered then
+  begin
+    if not OrderWorlds then
+    begin
+      Writeln('FindWorld: Could not order worlds properly.');
+      ExitWorldScreen;
+      Exit;
+    end;
+    wait(400+random(200));
+  end;
+
+  if fullworld(W) then
+  begin
+    Writeln('World selected is full, sorry.');
+    ExitWorldScreen;
+    exit;
+  end;
+
+  result := WorldIndexToMSBox(W);
+  end;
+
+(*
+SelectWorld
+~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    Function SelectWorld(W: Integer): Boolean;
+
+Switches to the specified world. Returns true if successful.
+
+..note::
+
+    by Narcle & ZephyrsFury - edited by Ashaman88
+
+Example:
+
+.. code-block:: pascal
+
+*)
+function SelectWorld(W: integer): boolean;
+var
+  i,t: integer;
+  validworld : boolean;
+  worldbox: tbox;
+begin
+  result := currentworldls = w;
+  if result then
+    exit;
+
+  if Length(WorldArray) < 1 then
+    worldarray :=
+    [301,320,343,366,+
+     302,321,344,367,+
+     303,322,345,368,+
+     304,325,346,369,+
+     305,326,349,370,+
+     306,327,350,373,+
+     308,328,351,374,+
+     309,329,352,375,+
+     310,330,353,376,+
+     311,333,354,377,+
+     312,334,357,378,+
+     313,335,358,381,+
+     314,336,359,382,+
+     316,337,360,383,+
+     317,338,361,384,+
+     318,341,362,393,+
+     319,342,365,394]; 
+  for i:=0 to high(worldarray) do
+  begin
+    if worldarray[i]=W then
+    begin
+      arraynumber := i;
+      validworld := true;
+      break;
+    end
+  end;
+
+  if not validworld then
+  begin
+    srl_Warn('SelectWorld', 'Invalid World', warn_AllVersions);
+    ExitWorldScreen;
+    Exit;
+  end;
+
+  if OpenWorldScreen then
+  begin
+    worldbox:= FindWorld(I);
+    if worldbox.x1 = 0 then
+    begin
+      ExitWorldScreen;
+      exit;
+    end;
+    mousebox(worldbox.x1,worldbox.y1,worldbox.x2,worldbox.y2,mouse_left);
+    result:=true;
+  end;
+
+  marktime(t);
+  repeat
+    wait(randomrange(400,500));
+    if timefrommark(t)>6000 then
+    begin
+      ExitWorldScreen;
+      exit;
+    end;
+  until not worldscreen;
+
+  wait(randomrange(400,500));
+  if (not(Result)) then TypeByte(vk_Escape);
+end;
+
+
+(*
+RandomWorld
+~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function RandomWorld: Integer;
+
+Returns a random world
+
+..note::
+
+    by Ashaman88
+
+Example:
+
+.. code-block:: pascal
+
+*)
+function RandomWorld: Integer;
+var
+  H: integer;
+begin
+  if Length(WorldArray) < 1 then
+    worldarray :=
+    [301,320,343,366,+
+     302,321,344,367,+
+     303,322,345,368,+
+     304,325,346,369,+
+     305,326,349,370,+
+     306,327,350,373,+
+     308,328,351,374,+
+     309,329,352,375,+
+     310,330,353,376,+
+     311,333,354,377,+
+     312,334,357,378,+
+     313,335,358,381,+
+     314,336,359,382,+
+     316,337,360,383,+
+     317,338,361,384,+
+     318,341,362,393,+
+     319,342,365,394]; 
+  H := Random(High(WorldArray));
+
+  Result := worldarray[H];
+end;
+
+(*
+ChangeWorld
+~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function ChangeWorld(W: Integer): Boolean;
+
+Changes to world W. Returns True if successful.
+
+..note::
+
+    by Ashaman88
+
+Example:
+
+.. code-block:: pascal
+
+*)
+function ChangeWorld(W: Integer): Boolean;
+begin
+  if LoggedIn then
+    WaitFunc(@Logout, 500, 5000);
+  result := currentworldls = w;
+  if not result then
+    Result := SelectWorld(W);
+  if Length(Players[CurrentPlayer].WorldInfo) > 0 then
+    Players[CurrentPlayer].WorldInfo[0]:=W;
+  LoginPlayer;
+end;
+
+(*
+NextWorld
+~~~~~~~~~~~
+
+..  code-block:: pascal
+
+    function NextWorld(W: Integer): Integer;
+
+    Returns the next world after W.
+
+..note::
+
+    by Spiker
+
+Example:
+
+..  code-block:: pascal
+
+    NextWorld(301);  Returns 302.
+    NextWorld(306);  Returns 309.
+    NextWorld(378);  Returns 301.
+
+*)
+function NextWorld(W: Integer): Integer;
+var
+  world: Extended;
+begin
+  if (W < 301) or (W > 377) then
+    Result := 301
+  else
+  begin
+    world := W;
+    world := world/8;
+    if world - Int(world) = 0.25 then
+      Result := W+3
+    else
+      Result := W+1;
+  end;
+end;
+
+(*
+ChangeToNextWorld
+~~~~~~~~~~~
+
+..  code-block:: pascal
+
+    function ChangeToNextWorld(W: Integer): Integer;
+
+    Changes to the next (non-full) world after W, then returns the world the player logs into.
+
+..note::
+
+    by Spiker
+
+Example:
+
+..  code-block:: pascal
+
+    ChangeToNextWorld(301);
+    Logs out player, logs them into the next non-full world, then returns the world they logged into.
+
+    Common Usage:
+
+    var
+      world:Integer;
+
+    world := CurrentWorld;
+    ...
+    ...
+    ...
+    world := ChangeToNextWorld(world);
+
+*)
+function ChangeToNextWorld(W: Integer): Integer;
+begin
+  if LoggedIn then
+    WaitFunc(@Logout, 500, 5000);
+  repeat
+    W := NextWorld(W);
+    SelectWorld(W);
+    if CurrentWorldLS <> W then
+      Writeln('World ' + IntToStr(W) + ' was full. Trying next world.');
+  until CurrentWorldLS = W;
+  Writeln('Successully switched to world ' + IntToStr(W) + '.');
+  if Length(Players[CurrentPlayer].WorldInfo) > 0 then
+    Players[CurrentPlayer].WorldInfo[0]:=W;
+  LoginPlayer;
+  Result := W;
+end;

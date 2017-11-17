@@ -1,0 +1,75 @@
+program new;
+{$i srl-6/srl.simba}
+var
+  x, y, logged, HighAlch, numberalchs, xpgained:Integer;
+
+   //Thanks for using Kory's Alcher!
+   //To use this please turn your brightness all the way up.
+
+   //A Few Notes;
+   //At the moment this only works on the downloadable client.
+   //This script will relog if the server disconnects you.
+   //This script has only just been released, so post bugs.
+   //I'm not a professional scripter.
+   //The 'Total Xp Gained' is the xp rate of a Legend.
+   //When I update it I will be adding the xp rates of all other game modes.
+   //THE SCRIPT WILL START ONCE YOU CLICK BACK ONTO THE CLIENT
+
+   //How To Use
+   //1. Place the item you wish to alch on the 15TH SLOT!
+   //2. Go under settings and change your function keys and untick the top one.
+   //3. Drag the 'Select A Client' tool and drop it on UltimateScape.
+   //4. Select the 'Yell' option on the chatbox and turn private off
+   //   So the chat doesn't interfere.
+   //5. Press play! Enjoy!
+
+
+   //-------------------------------------------------------------
+   //DO NOT EDIT BELOW THIS LINE UNLESS YOU KNOW WHAT YOU'RE DOING
+   //-------------------------------------------------------------
+
+procedure relog;
+Begin
+  if FindColorTolerance(x, y, 200, 346, 300, 408, 325, 3) then
+    Begin
+      mmouse(x, y,1,1);
+      MoveMouse(373, 317);
+      Wait(250);
+      ClickMouse(373, 317, 1);
+      IncEx(logged, 1);
+      Wait(3000);
+    End;
+End;
+procedure alch;
+Begin
+keydown(115);
+Wait(50);
+Keyup(115);
+  if FindBitmapToleranceIn(HighAlch, X, Y, 549, 215, 735, 464, 20) then
+    Begin
+      Wait(1000);
+      mmouse(x, y,1,1);
+      MoveMouse(x, y);
+      Wait(100);
+      ClickMouse(x, y, 1);
+      Wait(1500);
+      MoveMouse(663, 336);
+      Wait(50);
+      ClickMouse(663, 336, 1);
+      IncEx(numberalchs, 1);
+      IncEx(xpgained, 3250);
+      proggy
+      relog
+      Wait(500);
+    End;
+End;
+begin
+MouseSpeed := 20;
+HighAlch := BitmapFromString(12, 11, 'meJwzsnExwkCMDAwHDu0BkphScA' +
+        'Xfnj8DqsGlDFkBEBkcNEBTBrECWQEEAcXREFZBIOL59guCcIlwXro' +
+        'EF4EIYhVBFsQusn49siBOESRBrCIIQbA4pggAnB6SWg==');
+repeat
+alch
+until(false);
+Freebitmap(HighAlch);
+end.

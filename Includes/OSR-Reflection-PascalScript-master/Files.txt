@@ -1,0 +1,72 @@
+#### - This File contains the path & filename followed by the URL - ####
+#### -  Check for capital letters in the extension caused by git  - ####
+#### -           Reflection.Simba is not to be put here           - ####
+
+(Reflection\Core\Hooks.simba)
+(https://raw.githubusercontent.com/Elfyyy/OSR-Reflection-PascalScript/master/Core/Hooks.simba)
+
+(Reflection\Core\Includes.simba)
+(https://raw.githubusercontent.com/Elfyyy/OSR-Reflection-PascalScript/master/Core/Includes.simba)
+
+(Reflection\Core\Interaction.simba)
+(https://raw.githubusercontent.com/Elfyyy/OSR-Reflection-PascalScript/master/Core/Interaction.simba)
+
+(Reflection\Core\MapWalk.simba)
+(https://raw.githubusercontent.com/Elfyyy/OSR-Reflection-PascalScript/master/Core/MapWalk.simba)
+
+(Reflection\Core\Misc.simba)
+(https://raw.githubusercontent.com/Elfyyy/OSR-Reflection-PascalScript/master/Core/Misc.simba)
+
+(Reflection\Core\Npc.simba)
+(https://raw.githubusercontent.com/Elfyyy/OSR-Reflection-PascalScript/master/Core/Npc.simba)
+
+(Reflection\Core\Player.simba)
+(https://raw.githubusercontent.com/Elfyyy/OSR-Reflection-PascalScript/master/Core/Player.simba)
+
+(Reflection\Core\Tiles.simba)
+(https://raw.githubusercontent.com/Elfyyy/OSR-Reflection-PascalScript/master/Core/Tiles.simba)
+
+(Reflection\AntiRandoms\AntiRandoms.simba)
+(https://raw.githubusercontent.com/Elfyyy/OSR-Reflection-PascalScript/master/AntiRandoms/AntiRandoms.simba)
+
+(Reflection\AntiRandoms\R_TalkRandoms.simba)
+(https://raw.githubusercontent.com/Elfyyy/OSR-Reflection-PascalScript/master/AntiRandoms/R_TalkRandoms.simba)
+
+(Reflection\AntiRandoms\R_DDSolve.simba)
+(https://raw.githubusercontent.com/Elfyyy/OSR-Reflection-PascalScript/master/AntiRandoms/R_DDSolve.simba)
+
+(Reflection\AntiRandoms\R_ForesterSolve.simba)
+(https://raw.githubusercontent.com/Elfyyy/OSR-Reflection-PascalScript/master/AntiRandoms/R_ForesterSolve.simba)
+
+(Reflection\AntiRandoms\R_FrogSolve.simba)
+(https://raw.githubusercontent.com/Elfyyy/OSR-Reflection-PascalScript/master/AntiRandoms/R_FrogSolve.simba)
+
+(Reflection\AntiRandoms\R_MazeSolve.simba)
+(https://raw.githubusercontent.com/Elfyyy/OSR-Reflection-PascalScript/master/AntiRandoms/R_MazeSolve.simba)
+
+(Reflection\AntiRandoms\R_MimeSolve.simba)
+(https://raw.githubusercontent.com/Elfyyy/OSR-Reflection-PascalScript/master/AntiRandoms/R_MimeSolve.simba)
+
+(Reflection\AntiRandoms\R_PrisonPeteSolve.simba)
+(https://raw.githubusercontent.com/Elfyyy/OSR-Reflection-PascalScript/master/AntiRandoms/R_PrisonPeteSolve.simba)
+
+(Reflection\Tools\Path Maker.simba)
+(https://raw.githubusercontent.com/Elfyyy/OSR-Reflection-PascalScript/master/Tools/Path%20Maker.simba)
+
+(Reflection\Tools\Path Maker V2.simba)
+(https://raw.githubusercontent.com/Elfyyy/OSR-Reflection-PascalScript/master/Tools/Path%20Maker%20V2.simba)
+
+(Reflection\Tools\MainScreen to Tile.simba) 
+(https://raw.githubusercontent.com/Elfyyy/OSR-Reflection-PascalScript/master/Tools/MainScreen%20to%20Tile.simba)
+
+(Reflection\Tools\ID Display.simba) 
+(https://raw.githubusercontent.com/Elfyyy/OSR-Reflection-PascalScript/master/Tools/ID%20Display.simba)
+
+(Reflection\Core\GroundItems.simba)
+(https://raw.githubusercontent.com/Elfyyy/OSR-Reflection-PascalScript/master/Core/GroundItems.simba)
+
+(Reflection\Core\Objects.simba)
+(https://raw.githubusercontent.com/Elfyyy/OSR-Reflection-PascalScript/master/Core/Objects.simba)
+
+(Reflection\Core\Widgets.simba)
+(https://raw.githubusercontent.com/Elfyyy/OSR-Reflection-PascalScript/master/Core/Widgets.simba)

@@ -1,0 +1,34 @@
+program new;
+{$define SMART}
+{$define SRL}
+{$I SRL/OSR.simba}
+{$I RSWalker/Walker.simba}
+
+procedure WhileMoving(Sender:TObject; pos:TPoint);
+begin
+  WriteLn('>>> ', pos);
+end;
+
+
+var
+  RSW:TRSWalker;
+  path:TPointArray;
+begin
+  Smart.EnableDrawing := True;
+  Smart.Init();
+
+  RSW.Init('world.png');
+  AddOnTerminate(@RSW.Free);
+
+  RSW.walkStyle := wsRegular;
+  RSW.anyAngle  := True;
+  RSW.skipClose := 10;
+  RSW.onMoveEvent := @WhileMoving;
+
+  path := [Point(4550, 2672), Point(4543, 2708), Point(4512, 2737)];
+  for 0 to 5 do
+  begin
+    RSW.WalkPath(path);
+    path.Reverse();
+  end;
+end.

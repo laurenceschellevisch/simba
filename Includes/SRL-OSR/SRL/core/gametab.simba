@@ -1,0 +1,2607 @@
+(*
+Gametab
+=======
+
+This Include contains all Gametab Routines.
+
+.. contents::
+
+*)
+
+(*
+Gametab Functions
+-----------------
+
+*)
+
+(*
+GetCurrentTab
+~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function GetCurrentTab: Integer;
+
+Returns current tab as int constant, see globals for full constant list.
+
+.. note::
+
+    by DannyRS
+    Last Modified: Feb. 28th, 2013 by DannyRS
+
+Example:
+
+.. code-block:: pascal
+
+    if (not tabExists(TAB_MAGIC)) then
+      writeln('We may be in a random event!');
+
+
+*)
+function GetCurrentTab: Integer;
+var
+  TNB:TBox;
+  TabNum,X,Y:Integer;
+begin
+  Result := -1;
+  if (not LoggedIn) then exit;
+
+  for TabNum := 1 to 14 do
+  begin
+    case TabNum of
+    //tiny boxes top left of inv tabs
+    1: TNB:=IntToBox(535,172,540,176);
+    2: TNB:=IntToBox(564,172,571,176);
+    3: TNB:=IntToBox(596,172,600,176);
+    4: TNB:=IntToBox(630,172,635,176);
+    5: TNB:=IntToBox(663,172,670,176);
+    6: TNB:=IntToBox(696,172,703,176);
+    7: TNB:=IntToBox(730,173,736,180);
+    8: TNB:=IntToBox(525,469,534,473);
+    9: TNB:=IntToBox(563,469,570,473);
+    10:TNB:=IntToBox(596,469,602,473);
+    11:TNB:=IntToBox(629,469,634,473);
+    12:TNB:=IntToBox(662,469,669,473);
+    13:TNB:=IntToBox(695,469,700,473);
+    14:TNB:=IntToBox(728,469,733,473);
+    end;
+    if FindColorTolerance(X,Y,1910383,TNB.X1,TNB.Y1,TNB.X2,TNB.Y2,13) then
+      break;
+  end;
+  if TabNum<15 then
+  begin
+    case TabNum of
+    //return global constants
+    1: Result := tab_Combat;
+    2: Result := tab_Stats;
+    3: Result := tab_Quest;
+    4: Result := tab_Inv;
+    5: Result := tab_Equip;
+    6: Result := tab_Prayer;
+    7: Result := tab_Magic;
+    8: Result := tab_Clan;
+    9: Result := tab_Friends;
+    10:Result := tab_Ignore;
+    11:Result := tab_LogOut;
+    12:Result := tab_Options;
+    13:Result := tab_Emotes;
+    14:Result := tab_Music;
+    end;
+  end
+  else
+    Result := Result;
+  if BankScreen then
+    Result := tab_Inv;
+end;
+
+(*
+TabExists
+~~~~~~~~~
+
+.. code-block:: pascal
+
+    function TabExists(tab: integer): boolean;
+
+Returns true if the gametab 'tab' exists.  Tab constants can be found in
+globals.simba.
+
+.. note::
+
+    by DannyRS
+    Last Modified: Feb. 28th, 2013 by DannyRS
+
+Example:
+
+.. code-block:: pascal
+
+    if (not tabExists(tab_music)) then //magic
+      writeln('We may be in a random event!');
+*)
+function TabExists(tab: integer): boolean;
+var
+  tmpCTS,X,Y: integer;
+begin
+  result := false;
+  if (not loggedIn) then
+    exit;
+
+  if (not inRange(tab, tab_Combat, tab_music)) then
+  begin
+    SRL_Warn('TabExists', 'Tab ' + toStr(Tab) + ' is not a valid tab number.', warn_AllVersions);
+    exit;
+  end;
+
+  // requires CTS 1, may result in false negatives if CTS 2
+  tmpCTS := getColorToleranceSpeed;
+  colorToleranceSpeed(1);
+
+  if (tab = TAB_INV) then
+    if (bankScreen) then
+    begin
+      colorToleranceSpeed(tmpCTS);
+      result := true;
+      exit;
+    end;
+
+  case tab of
+    //black outlines of inv buttons
+    TAB_COMBAT : Result:=(GetColor(535,177)=65536);
+    TAB_STATS  : Result:=(GetColor(565,187)=65536);
+    { No black outline on Quest button Jagex!?!? }
+    TAB_QUEST  : Result:=(FindColorTolerance(X,Y,15821910, 600, 175, 620, 196,81));
+    TAB_INV    : Result:=(GetColor(642,173)=65536);
+    TAB_EQUIP  : Result:=(GetColor(666,177)=65536);
+    TAB_PRAYER : Result:=(GetColor(706,175)=65536);
+    TAB_MAGIC  : Result:=(GetColor(730,188)=65536);
+    TAB_CLAN   : Result:=(GetColor(538,476)=65536);
+    TAB_FRIENDS: Result:=(GetColor(565,485)=65536);
+    TAB_IGNORE : Result:=(GetColor(598,485)=65536);
+    TAB_LOGOUT : Result:=(GetColor(643,470)=65536);
+    TAB_OPTIONS: Result:=(GetColor(680,472)=65536);
+    TAB_EMOTES : Result:=(GetColor(713,475)=65536);
+    TAB_MUSIC  : Result:=(GetColor(747,471)=65536);
+  end;
+  colorToleranceSpeed(tmpCTS);
+end;
+
+(*
+
+GameTab
+~~~~~~~
+
+.. code-block:: pascal
+
+    function GameTab(Tab: Integer): Boolean;
+
+Clicks to switch current game tab.
+
+.. note::
+
+    by DannyRS
+    Last Modified: Feb. 28th, 2013 by DannyRS
+
+Example:
+
+.. code-block:: pascal
+
+*)
+function GameTab(Tab: Integer): Boolean;
+var
+  T, Tries: Integer;
+  TNB: TBox;
+begin
+  if (not LoggedIn) then
+    Exit;
+
+  Result := false;
+  if (not(InRange(Tab, tab_Combat, tab_Music))) then
+  begin
+    SRL_Warn('GameTab', 'Tab ' + IntToStr(Tab) + ' is not a valid tab number.', warn_AllVersions);
+    Exit;
+  end;
+
+  Result := (GetCurrentTab = Tab);
+  if (Result) then exit;
+
+  case Tab of
+    //accurate boxes of inv tabs
+    tab_Combat : TNB:=IntToBox(533,174,552,197);
+    tab_Stats  : TNB:=IntToBox(563,171,590,197);
+    tab_Quest  : TNB:=IntToBox(597,171,622,197);
+    tab_Inv    : TNB:=IntToBox(629,171,655,197);
+    tab_Equip  : TNB:=IntToBox(662,171,688,197);
+    tab_Prayer : TNB:=IntToBox(695,171,719,197);
+    tab_Magic  : TNB:=IntToBox(729,175,752,197);
+    tab_Clan   : TNB:=IntToBox(529,469,554,490);
+    tab_Friends: TNB:=IntToBox(564,469,587,495);
+    tab_Ignore : TNB:=IntToBox(597,469,620,495);
+    tab_LogOut : TNB:=IntToBox(630,469,655,495);
+    tab_Options: TNB:=IntToBox(662,469,688,495);
+    tab_Emotes : TNB:=IntToBox(697,469,720,495);
+    tab_Music  : TNB:=IntToBox(729,469,752,490);
+  end;
+
+  if (TabExists(Tab)) then
+  begin
+
+    Tries := 0;
+    while ((Tries < 3) and (not Result)) do
+    begin
+      MouseBox(TNB.X1, TNB.Y1, TNB.X2, TNB.Y2, mouse_left);
+
+      T := GetSystemTime;
+      while (not Result) and (GetSystemTime - T < 2000) do
+      begin
+        Wait(100 + Random(100));
+        Result := (GetCurrentTab = Tab);
+      end;
+
+      Inc(Tries);
+    end;
+
+    if (Result) then
+      Wait(250 + Random(300));
+
+  end;
+end;
+
+(*
+
+FTab
+~~~~
+
+.. code-block:: pascal
+
+    function FTab(Tab: Integer): Boolean;
+
+Instead of clicking the Tab this uses the F keys to instantly switch to the tab.
+Works with all tabs except Logout (F1-F12, escape for inv).
+
+.. note::
+
+    by DannyRS
+    Last Modified: Feb. 28th, 2013 by DannyRS
+
+Example:
+
+.. code-block:: pascal
+
+*)
+function FTab(Tab: Integer): boolean;
+var
+  T, F: integer;
+begin
+  Result := false;
+  if (not(InRange(Tab, tab_Combat, tab_music))) then
+  begin
+    SRL_Warn('GameTab', 'FTab ' + IntToStr(Tab) + ' is not a valid tab number.', warn_AllVersions);
+    Exit;
+  end;
+
+{ LogOut Does not have a key AFAIK }
+  if (Tab=tab_Logout) then
+  begin
+    SRL_Warn('GameTab', 'FTab ' + IntToStr(Tab) + ' is not a valid tab number.', warn_AllVersions);
+    Exit;
+  end;
+
+  if (GetCurrentTab = Tab) then
+  begin
+    result := true;
+    Exit;
+  end;
+
+  case Tab of
+{ LogOut Does not have a key AFAIK }
+    tab_Combat : F:=1;
+    tab_Stats  : F:=2;
+    tab_Quest  : F:=3;
+    tab_Inv    : F:=-84;
+    tab_Equip  : F:=4;
+    tab_Prayer : F:=5;
+    tab_Magic  : F:=6;
+    tab_Clan   : F:=7;
+    tab_Friends: F:=8;
+    tab_Ignore : F:=9;
+    tab_Options: F:=10;
+    tab_Emotes : F:=11;
+    tab_Music  : F:=12;
+  end;
+
+  T := GetSystemTime + 618;
+  Repeat
+    TypeByte(111+F);
+    Wait(150+random(100));
+    Result := GetCurrentTab = Tab;
+  until Result or (GetSystemTime > T);
+
+  if (not Result) then
+    Result:= GameTab(Tab); //failsafe
+end;
+
+(*
+
+Gametab 1
+---------
+
+Gametab 1 related functions.
+*)
+
+(*
+
+SetFightMode
+~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function SetFightMode(oFightMode: Integer): Boolean;
+
+Sets fight mode.  Returns false if failed to set desired mode.
+
+.. note::
+
+    by DannyRS, modelled after original SetFightMode,
+    by Nielsie95 & Nava2, Quickmarch
+    Last Modified: Feb. 28th, 2013 by DannyRS
+
+Example:
+
+.. code-block:: pascal
+
+*)
+function SetFightMode(oFightMode: Integer): Boolean;
+var
+  i, x, y: Integer;
+  b: TBox;
+  cmbBoxes: TBoxArray;
+begin
+  Result := False;
+  if not(Loggedin)then Exit;
+  if not(GameTab(tab_Combat))then Exit;
+  Wait(100 + Random(100));
+
+  if (not(InRange(oFightMode, 1, 4))) then
+  begin
+    SRL_Warn('GameTab', 'SetFightMode ' + IntToStr(oFightMode) + ' is not a valid fightmode number.', warn_AllVersions);
+    Exit;
+  end;
+
+  cmbBoxes := [IntToBox(572, 255, 631, 290), IntToBox(656, 255, 715, 290),
+               IntToBox(572, 308, 631, 343), IntToBox(655, 308, 714, 343)];
+  b := cmbBoxes[oFightMode - 1];
+
+{ If no 4th weapon option goto 3rd option }
+  if (oFightMode = 4) and (not FindColor(x, y, 2070783, 655, 308, 714, 343)) then
+    b := cmbBoxes[2];
+
+  i := 0;
+  while (i < 4) do
+  begin
+    Result := FindColorTolerance(x, y, 1908609, b.x1, b.y1, b.x2, b.y2, 5);
+    if (Result) then Exit;
+    MouseBox(b.x1, b.y1, b.x2, b.y2, mouse_left);
+    Wait(200 + Random(300));
+    Inc(i);
+  end;
+end;
+
+(*
+
+GetWeaponName
+~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    Function GetWeaponName: String;
+
+Returns the name of the weapon your currently using.
+
+.. note::
+
+    by DannyRS, modelled after GetWeaponName by Nielsie95 & Narcle
+    Last Modified: Feb. 28th, 2013 by DannyRS
+
+Example:
+
+.. code-block:: pascal
+
+*)
+Function GetWeaponName: String;
+begin
+  if GameTab(tab_Combat) then
+    Result := GetTextAtExWrap(555, 210, 730, 230, 0, 3, 1, 2070783, 0, 'CharsNPC07');
+end;
+
+(*
+
+GetWeaponData
+~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function GetWeaponData(var WArr: array of TStringArray): Boolean;
+
+Grabs weapon data and puts it into T2DStringArray.  The data is the
+information you get when you mouse over the attack styles of the weapon.  This
+then sets it into a array that can be used to set the fight mode of the weapon.
+It even gets info like 'Crush' or 'Slash' can be useful if the NPC is weak to
+that type of attack.
+
+.. note::
+
+    by Narcle
+    Last Modified: Feb. 28th, 2013 by DannyRS
+{ ************************* FLAWED / BROKEN ************************ }
+
+Example:
+
+.. code-block:: pascal
+
+*)
+function GetWeaponData(var WArr: array of TStringArray): Boolean;
+var
+  x, y, i, ii, H, L: integer;
+  TB: TBox;
+  TP: TPointArray;
+  T: TPoint;
+begin
+  Result := False;
+  if (not LoggedIn) then
+    Exit;
+  if not GameTab(tab_Combat) then
+    Exit;
+  for i := 0 to 3 do
+  begin
+    T := Point(680-(i+1) mod 2*85, 270+2 mod (i+1)*28);
+    if CountColor(2070783, T.x - 27, T.y-18, T.x + 40, T.y + 22) > 10 then
+      Inc(L);
+  end;
+  SetArrayLength(WArr, L);
+  for I := 0 to L-1 do
+  begin
+    MMouse(680-(i+1) mod 2*85, 270+2 mod (i+1)*28, 12, 12);
+    wait(100+random(50));
+    WaitFindColor(X, Y, 10551295, MIX1-10, MIY1-10, MIX2+10, MIY2+10, 0, 3000);
+    GetClientDimensions(TB.X2, TB.Y2);
+    TB := IntToBox(0, 0, TB.X2, TB.Y2);
+    FindColors(TP, 10551295, TB.X1, TB.Y1, TB.X2 - 1, TB.Y2 - 1);
+    if (Length(TP) < 1) then
+      Continue;
+    TB := GetTPABounds(TP);
+    H := ((TB.y2-TB.y1) div 13)-1;
+    SetArrayLength(WArr[i], H+1);
+    for ii := 0 to H do
+    begin
+      WArr[i][ii] := GetTextAtExWrap(TB.x1+1, TB.y1+3, TB.x2, TB.y1+12, 0, 5, 4, 0, 0, 'SmallChars07');
+      Debugln(WArr[i][ii]);
+      case (WArr[i][ii]) of
+        '(Aooressive)':(WArr[i][ii]):='(Aggressive)';
+        '(SDVh)':(WArr[i][ii]):='(Slash)';
+        '(Slhsh)':(WArr[i][ii]):='(Slash)';
+        '(Strenoth XP)':(WArr[i][ii]):='(Strength XP)';
+      end;
+      Result := (WArr[i][ii] <> '');
+      IncEx(TB.Y1, 12);
+    end;
+  end;
+end;
+
+(*
+
+SetWeaponMode
+~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    Function SetWeaponMode(Skill: string; WeaponData: array of TStringArray; SetIt: boolean): boolean;
+
+Sets Combat mode depending on WeaponData given.  You can also
+decide to SetIt which will set it to that particular skill or read it to see
+if they are ranging, meleeing or using magic (with staff).
+
+.. note::
+
+    by Narcle
+
+Example:
+
+.. code-block:: pascal
+
+*)
+Function SetWeaponMode(Skill: string; WeaponData: array of TStringArray; SetIt: boolean): boolean;
+var
+  i, ii: integer;
+begin
+  for i := 0 to High(WeaponData) do
+   for ii := 0 to High(WeaponData[i]) do
+   if (Pos(Lowercase(skill), Lowercase(WeaponData[i][ii])) <> 0) then
+   begin
+     if SetIt then
+       Result := SetFightMode(i + 1)
+     else
+       Result := True;
+     Exit;
+   end;
+end;
+
+(*
+
+SetCombatType
+~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function SetCombatType(Kind : string): Boolean;
+
+Sets Combat mode inputted into Kind, treat like UpText.
+
+.. note::
+
+    by Narcle & Nava2
+
+Example:
+
+.. code-block:: pascal
+
+*)
+function SetCombatType(Skill: string): Boolean;
+var
+  WeapArr: array of TStringArray;
+begin
+  if GetWeaponData(WeapArr) then
+    Result := SetWeaponMode(Skill, WeapArr, true)
+  else
+    Result := False;
+end;
+
+(*
+
+GetCombatLevel
+~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function GetCombatLevel: Integer;
+
+Returns the players combat level.
+
+.. note::
+
+    by Nielsie95 & Narcle
+    Last Modified: Feb. 28th, 2013 by DannyRS
+
+Example:
+
+.. code-block:: pascal
+
+*)
+function GetCombatLevel: Integer;
+begin
+  Result := -1;
+  if not FTab(tab_Combat) then
+    exit;
+
+  Result := StrToIntDef(ExtractFromStr(GetTextAtExWrap(662, 230, 700, 240, 0,
+                                    3, 1, 2070783, 0, 'StatChars07'), Numbers), -1);
+end;
+
+
+(*
+
+Retaliate
+~~~~~~~~~
+
+.. code-block:: pascal
+
+    procedure Retaliate(RetTrue: Boolean);
+
+Set's Auto Retaliate ON of OFF.
+
+.. note::
+
+    by DannyRS
+    Last Modified: Feb. 28th, 2013 by DannyRS
+
+Example:
+
+.. code-block:: pascal
+
+*)
+procedure Retaliate(RetTrue: Boolean);
+begin
+  if not FTab(tab_Combat) then
+    Exit;
+
+  if (RetTrue) xor (GetTextAtExWrap(644, 379, 667, 392, 0, 5, 1, 2070783, 20, 'UpChars07') ='(On)') then
+    MouseBox(572, 362, 713, 397, mouse_left);
+end;
+
+(* 
+
+Gametab 2
+---------
+
+Gametab 2 related functions.
+
+*)
+
+//****************************************************************************//
+// * GameTab 2 Related Functions.
+//****************************************************************************//
+
+{ const Skill Constants;
+  Description: Constants representing player skills. }
+{ consts in Players.scar ; Here is the list for easier access
+const
+  SKILL_ATTACK        = 0;
+  SKILL_DEFENCE       = 1;
+  SKILL_STRENGTH      = 2;
+  SKILL_HITPOINTS     = 3;    
+  SKILL_RANGE         = 4;
+  SKILL_PRAYER        = 5;
+  SKILL_MAGIC         = 6;
+  SKILL_COOKING       = 7;
+  SKILL_WOODCUTTING   = 8;
+  SKILL_FLETCHING     = 9;
+  SKILL_FISHING       = 10;
+  SKILL_FIREMAKING    = 11;
+  SKILL_CRAFTING      = 12;
+  SKILL_SMITHING      = 13;
+  SKILL_MINING        = 14;
+  SKILL_HERBLORE      = 15;
+  SKILL_AGILITY       = 16;
+  SKILL_THIEVING      = 17;
+  SKILL_SLAYER        = 18;
+  SKILL_FARMING       = 19;
+  SKILL_RUNECRAFTING  = 20;
+  SKILL_HUNTER        = 21;
+  SKILL_CONSTRUCTION  = 22;
+  SKILL_SUMMONING     = 23;
+  SKILL_DUNGEONEERING = 24;
+  SKILL_ALLCOMBAT     = 25;
+  SKILL_EVERYSKILL    = 26;
+  SKILL_NONE          = 27;
+}
+
+(*
+
+SkillBoxCoords
+~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function SkillBoxCoords(Row, Column : ShortInt): TBox;
+
+Returns TBox of Skill's Box (Used for GetSkill functions)
+
+.. note::
+
+    by DannyRS
+    Last Modified: Feb. 28th, 2013 by DannyRS
+
+Example:
+
+.. code-block:: pascal
+
+*)
+function SkillBoxCoords(Row, Column : ShortInt): TBox;
+begin
+  Result := IntToBox(549+(63*(Row-1)),208+(31*(Column-1)),608+(63*(Row-1)),237+(31*(Column-1)));
+end;
+
+(*
+
+SkillBoxHalf
+~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function SkillBoxHalf(Row, Column : ShortInt; TopHalf : Boolean): TBox;
+
+Returns TBox of Skill's Box (Used for GetSkill functions)
+
+.. note::
+
+    by DannyRS
+    Last Modified: Feb. 28th, 2013 by DannyRS
+
+Example:
+
+.. code-block:: pascal
+
+*)
+function SkillBoxHalf(Row, Column : ShortInt; TopHalf : Boolean): TBox;
+var
+  ResBox: TBox;
+begin
+  ResBox := SkillBoxCoords(Row, Column);
+  if TopHalf then
+    Result := IntToBox(ResBox.X1,ResBox.Y1,ResBox.X2,ResBox.Y1+13)
+  else
+    Result := IntToBox(ResBox.X1,ResBox.Y2-13,ResBox.X2,ResBox.Y2)
+end;
+
+(*
+
+SkillCoords
+~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function SkillCoords(Row, Column : ShortInt): TPoint;
+
+Returns Coords of Skill's Row and Column (Used for ?Parent)
+
+.. note::
+
+    by DannyRS
+    Last Modified: March, 2nd, 2013 by DannyRS
+
+Example:
+
+.. code-block:: pascal
+
+*)
+function SkillCoords(Row, Column : ShortInt): TPoint;
+var
+  ResPoint: TPoint;
+  SkillBox: TBox;
+begin
+  SkillBox := SkillBoxCoords(Row, Column);
+  ResPoint.X := Round(((SkillBox.X2-SkillBox.X1)/2)+SkillBox.X1);
+  ResPoint.Y := Round(((SkillBox.Y2-SkillBox.Y1)/2)+SkillBox.Y1);
+  Result := ResPoint;
+end;
+
+(*
+
+SkillToPoint
+~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function SkillToPoint(Skill: Variant): TPoint;
+
+Turns global skill integer / raw string into TPoint position.
+
+.. note::
+
+    by DannyRS
+    Last Modified: March, 2nd, 2013 by DannyRS
+
+Example:
+
+.. code-block:: pascal
+
+*)
+function SkillToPoint(Skill: Variant): TPoint;
+var
+  SkillPT : TPoint; //Row/Column
+begin
+  if (not LoggedIn) then Exit;
+
+  if VariantIsString(Skill) then
+  begin
+    case Lowercase(Skill) of
+      'attack','attk'     : SkillPT := Point(1,1);
+      'strength','str'    : SkillPT := Point(1,2);
+      'defence','def'     : SkillPT := Point(1,3);
+      'ranged','range'    : SkillPT := Point(1,4);
+      'prayer','pray'     : SkillPT := Point(1,5);
+      'magic','mage'      : SkillPT := Point(1,6);
+      'runecrafting','rc' : SkillPT := Point(1,7);
+      'construction'      : SkillPT := Point(1,8);
+      'hitpoints','hp','constitution': SkillPT := Point(2,1);
+      'agility','agil'    : SkillPT := Point(2,2);
+      'herblore','herb'   : SkillPT := Point(2,3);
+      'thieving'          : SkillPT := Point(2,4);
+      'crafting','craft'  : SkillPT := Point(2,5);
+      'fletching','fletch': SkillPT := Point(2,6);
+      'slayer','slay'     : SkillPT := Point(2,7);
+      'hunter','hunt'     : SkillPT := Point(2,8);
+      'mining','mine'     : SkillPT := Point(3,1);
+      'smithing','smith'  : SkillPT := Point(3,2);
+      'fishing','fish'    : SkillPT := Point(3,3);
+      'cooking','cook'    : SkillPT := Point(3,4);
+      'firemaking','fm'   : SkillPT := Point(3,5);
+      'woodcutting','wc'  : SkillPT := Point(3,6);
+      'farming','farm'    : SkillPT := Point(3,7);
+      else
+      begin
+        srl_Warn('SkillToPoint', 'Invalid Skill Name: ''' + tostr(Skill) + '''', warn_AllVersions);
+        Exit;
+      end;
+    end;
+  end
+  else
+  if VariantIsInteger(Skill) then
+  begin
+    case Skill of
+      Skill_Attack        : SkillPT := Point(1,1);
+      Skill_Strength      : SkillPT := Point(1,2);
+      Skill_Defence       : SkillPT := Point(1,3);
+      Skill_Range         : SkillPT := Point(1,4);
+      Skill_Prayer        : SkillPT := Point(1,5);
+      Skill_Magic         : SkillPT := Point(1,6);
+      Skill_RuneCrafting  : SkillPT := Point(1,7);
+      Skill_Construction  : SkillPT := Point(1,8);
+      Skill_Hitpoints     : SkillPT := Point(2,1);
+      Skill_Agility       : SkillPT := Point(2,2);
+      Skill_Herblore      : SkillPT := Point(2,3);
+      Skill_Thieving      : SkillPT := Point(2,4);
+      Skill_Crafting      : SkillPT := Point(2,5);
+      Skill_Fletching     : SkillPT := Point(2,6);
+      Skill_Slayer        : SkillPT := Point(2,7);
+      Skill_Hunter        : SkillPT := Point(2,8);
+      Skill_Mining        : SkillPT := Point(3,1);
+      Skill_Smithing      : SkillPT := Point(3,2);
+      Skill_Fishing       : SkillPT := Point(3,3);
+      Skill_Cooking       : SkillPT := Point(3,4);
+      Skill_FireMaking    : SkillPT := Point(3,5);
+      Skill_WoodCutting   : SkillPT := Point(3,6);
+      Skill_Farming       : SkillPT := Point(3,7);
+      else
+      begin
+        srl_Warn('SkillToCoords', 'Invalid Skill Number: ''' + tostr(Skill) + '''', warn_AllVersions);
+        Exit;
+      end;
+    end;
+  end
+  else
+  begin
+    srl_Warn('SkillToCoords', 'Invalid Skill Variant : ''' + tostr(Skill) + '''',
+             warn_AllVersions);
+    Exit;
+  end;
+  Result := SkillPT;
+end;
+
+(*
+
+SkillToCoords
+~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function SkillToCoords(Skill: variant): TPoint;
+
+Turns a skill String into TPoint position
+in the middle of the skill on the game grid.
+
+.. note::
+
+    by DannyRS
+    Last Modified: March, 2nd, 2013 by DannyRS
+
+Example:
+
+.. code-block:: pascal
+
+*)
+function SkillToCoords(Skill: variant): TPoint;
+var
+  TP : TPoint; //Row/Column
+begin
+  TP := SkillToPoint(Skill);
+  Result := SkillCoords(TP.X,TP.Y);
+end;
+
+(*
+GetSkillInfo
+~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function GetSkillInfo(Skill: Variant; Amount : Boolean): Integer;
+
+Gets the amount / level of a skill.
+E.G.
+0/15
+Amount = True will return 0.
+Amount = False will return 15 (The actual level).
+Returns -1 if the level couln't be grabbed succesfully
+
+.. note::
+
+    by DannyRS, designed from original by Raymond
+    Last Modified: Feb. 28th, 2013 by DannyRS
+
+Example:
+
+.. code-block:: pascal
+*)
+function GetSkillInfo(Skill: Variant; Amount : Boolean): Integer;
+var
+  TP  : TPoint;
+  Box : TBox;
+  TPA : TPointArray;
+  Cts : Integer;
+begin
+  Result := -1;
+  if (not GameTab(tab_Stats)) then Exit;
+  TP := SkillToPoint(Skill);
+  if (Amount) then
+    Box := SkillBoxHalf(TP.X,TP.Y,True)
+  else
+    Box := SkillBoxHalf(TP.X,TP.Y,False);
+  CTS := GetColorToleranceSpeed;
+  ColorToleranceSpeed(0);
+  if (not FindColors(TPA,65535, Box.X1, Box.Y1, Box.X2, Box.Y2)) then
+  begin
+    ColorToleranceSpeed(CTS);
+    exit;
+  end;
+  Box := GetTPABounds(TPA);
+  Result := StrToIntDef(GetTextAtExWrap(Box.X1-2,Box.Y1-2,Box.X2+2
+                              ,Box.Y2+2,0,5,1,65535,0,'StatChars07'),-1);
+  ColorToleranceSpeed(CTS);
+end;
+
+(*
+GetSkillLevel
+~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    Function GetSkillLevel(skill: Variant): Integer;
+
+Gets the player level for a particular skill.
+
+.. note::
+
+    by DannyRS
+    Last Modified: Feb. 28th, 2013 by DannyRS
+
+Example:
+
+.. code-block:: pascal
+*)
+function GetSkillLevel(Skill: Variant): Integer;
+begin
+  Result := GetSkillInfo(Skill, False);
+end;
+
+(*
+GetSkillMaxLevel
+~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    Function GetSkillLevel(skill: Variant): Integer;
+
+Gets the player max level for a particular skill.
+
+.. note::
+
+    by DannyRS
+    Last Modified: Feb. 28th, 2013 by DannyRS
+
+Example:
+
+.. code-block:: pascal
+*)
+function GetSkillMaxLevel(Skill: Variant): Integer;
+begin
+  Result := GetSkillInfo(Skill, True);
+end;
+
+(*
+GetSkillTotalLevel
+~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function GetSkillTotalLevel: Integer;
+
+Gets the player total level from skills tab.
+
+.. note::
+
+    by DannyRS
+    Last Modified: Feb. 28th, 2013 by DannyRS
+
+Example:
+
+.. code-block:: pascal
+*)
+function GetSkillTotalLevel: Integer;
+begin
+  Result := -1;
+  if (not FTab(tab_Stats)) then Exit;
+  Wait(100 + Random(100));
+  Result := StrToIntDef(Trim(GetTextAtExWrap(
+    705,442,735,452,0,5,1,65535,0,'StatChars07')),-1);
+end;
+
+(*
+IsRunOn
+~~~~~~~
+
+.. code-block:: pascal
+
+    function IsRunOn(SwapGTabBack): Boolean;
+
+Returns True if run is toggled on.
+(SwapGTabBack: Boolean) determines if you want to
+switch the tab back after check
+
+.. note::
+
+    by DannyRS
+    Last Modified: Feb. 28th, 2013 by DannyRS
+
+Example:
+
+.. code-block:: pascal
+
+   if IsRunOn(True) then writeln('my run is on');
+
+*)
+function IsRunOn(SwapGTabBack: Boolean): Boolean;
+var
+  CCount,OrigTab: Integer;
+begin
+  Result := False;
+  if (SwapGTabBack) then OrigTab := GetCurrentTab;
+  if (FTab(tab_Options)) then
+  begin
+    CCount := CountColorTolerance(2369440, 626, 412, 657, 413, 20);
+    Result := (CCount>1);
+    if (SwapGTabBack) then GameTab(OrigTab);
+  end;
+end;
+
+(*
+GetXP
+~~~~~
+
+.. code-block:: pascal
+
+    function GetXP(Skill: Variant): Integer;
+
+Returns current xp for a skill. Returns -1 if failed.
+
+.. note::
+
+    by DannyRS, based off original by Nielsie95
+    Last Modified: Feb. 28th, 2013 by DannyRS
+
+Example:
+
+.. code-block:: pascal
+*)
+function GetXP(skill: variant): integer;
+var
+  MouseTB,b: TBox;
+  rc,mpos: TPoint;
+  tpa: TPointArray;
+begin
+  result := -1;
+
+  if(not TabExists(tab_Stats)) or (not gameTab(tab_Stats)) then
+    exit;
+
+  rc:= SkillToPoint(skill);
+  MouseTB := SkillBoxCoords(rc.x,rc.y);
+  if (MouseTB.X1 < 1) then
+    exit;
+
+  GetMousePos(mpos.x,mpos.y);
+  if not PointInBox(mpos,MouseTB) then
+    mouseBox(MouseTB.x1,MouseTB.y1,MouseTB.x2,MouseTB.y2,mouse_move);
+
+  wait(400 + random(200));
+
+  if (WaitFindColors(tpa, 10551295, MIX1, MIY1, MIX2, MIY2, 0, 3000)) then
+  begin
+    b := getTPABounds(tpa);
+    wait(450 + random(150));
+    result := strToIntDef(getNumbers(GetTextAtExWrap(b.x1+15, b.y1+2,b.x2-2,
+                                    b.y1+13, 0, 5, 1, 0, 0, 'smallChars07')), -1);
+  end;
+end;
+
+(*
+XPTillNextLevel
+~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function XpTillNextLevel(Skill: Variant): Integer;
+
+Returns current xp until you level up in a skill.
+Returns -1 if failed.
+
+.. note::
+
+    by DannyRS
+    Last Modified: Feb. 28th, 2013 by DannyRS
+
+Example:
+
+.. code-block:: pascal
+*)
+function XPTillNextLevel(Skill: Variant): Integer;
+var
+  MouseTB,b: TBox;
+  rc,mpos: TPoint;
+  tpa: TPointArray;
+  CXP,XPNLA: Integer;
+begin
+  Result := -1;
+
+  if(not TabExists(tab_Stats)) or (not gameTab(tab_Stats)) then
+    exit;
+
+  rc:= SkillToPoint(skill);
+  MouseTB := SkillBoxCoords(rc.x,rc.y);
+  if (MouseTB.X1 < 1) then
+    exit;
+
+  GetMousePos(mpos.x,mpos.y);
+  if not PointInBox(mpos,MouseTB) then
+    mouseBox(MouseTB.x1,MouseTB.y1,MouseTB.x2,MouseTB.y2,mouse_move);
+
+  wait(400 + random(200));
+
+  if (WaitFindColors(tpa, 10551295, MIX1, MIY1, MIX2, MIY2, 0, 3000)) then
+  begin
+    b := getTPABounds(tpa);
+    wait(450 + random(150));
+    CXP := strToIntDef(getNumbers(GetTextAtExWrap(b.x1+15, b.y1+2,b.x2-2,
+                                    b.y1+13, 0, 5, 1, 0, 0, 'smallChars07')), -1);
+    XPNLA := strToIntDef(getNumbers(GetTextAtExWrap(b.x1+15, b.y2-15,b.x2-2,
+                                    b.y2-2, 0, 5, 1, 0, 0, 'smallChars07')), -1);
+    result := XPNLA-CXP;
+    if (result<0) then result := -1;
+  end;
+end;
+
+(*
+HPPercent
+~~~~~~~~~
+
+.. code-block:: pascal
+
+    function HpPercent: Integer;
+
+Returns Hp left as a percentage from skill panel
+returns -1 is unsuccessful.
+
+.. note::
+
+    by DannyRS
+    Last Modified: Feb. 28th, 2013 by DannyRS
+
+Example:
+
+.. code-block:: pascal
+*)
+function HPPercent(SwapGTabBack: Boolean): Integer;
+var
+  OrigTab,CHP,CMHP: Integer;
+begin
+  Result := -1;
+  if (SwapGTabBack) then OrigTab := GetCurrentTab;
+  if (GameTab(tab_Stats)) then
+  begin
+    CHP := GetSkillInfo('hp',True);
+    CMHP := GetSkillInfo('hp',False);
+    Result := Round((CHP*100/CMHP));
+    if (SwapGTabBack) then GameTab(OrigTab);
+  end;
+end;
+
+(*
+GetAllLevels
+~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    procedure GetAllLevels;
+
+Sets all 25 skilllevels to Players.Level[0..24]:
+Refer to the 'GameTab 2 Related Functions' above for the order.
+
+.. note::
+
+    by WT-Fakawi & ZephyrsFury
+
+Example:
+
+.. code-block:: pascal
+*)
+procedure GetAllLevels;
+var
+  II: Integer;
+begin
+  try
+    for II := 0 to High(Players[CurrentPlayer].Level) do
+      Players[CurrentPlayer].Level[II] := GetSkillLevel(II);
+  except
+    srl_Warn('GetAllLevels', 'CurrentPlayer not declared!', warn_AllVersions);
+  end;
+end;
+
+(*
+Gametab 3
+---------
+
+Gametab 3 related functions
+
+*)
+
+
+(*
+Gametab 4
+---------
+
+Gametab 4 related functions
+
+*)
+
+
+(*
+
+Gametab 5
+---------
+
+Gametab 5 related functions
+
+*)
+
+(*
+GetEquippedItemBounds
+~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function GetEquippedItemBounds(Which: Variant): TBox;
+    returns a TBox of an equipment slot
+
+Returns TBox of the specified equipment slot
+
+.. note::
+
+    by DannyRS, based off original by Nava2
+    Last Modified: Feb. 28th, 2013 by DannyRS
+
+Example:
+
+.. code-block:: pascal
+
+*)
+function GetEquippedItemBounds(Which: Variant): TBox;
+var
+  I: Integer;
+begin
+  Result := IntToBox(0, 0, 0, 0);
+
+  I := -1;
+
+  if VariantIsString(Which) then
+    case Which of
+      'helm', 'helmet' :
+        I := 1;
+      'cape' :
+        I := 2;
+      'amulet', 'neck', 'necklace' :
+        I := 3;
+      'arrows', 'bolts' :
+        I := 4;
+      'right hand', 'weapon' :
+        I := 5;
+      'plate', 'chest', 'platebody' :
+        I := 6;
+      'left hand', 'sheild', 'shield' :
+        I := 7;
+      'legs', 'platelegs', 'skirt', 'plateskirt' :
+        I := 8;
+      'gloves', 'gauntlets' :
+        I := 9;
+      'boots':
+        I := 10;
+      'ring' :
+        I := 11;
+    end
+  else if VariantIsInteger(Which) then
+    if (InRange(Which, 1, 11)) then
+      I := Which;
+
+  if (I = -1) then
+  begin
+    SRL_Warn('GetEquiptItemBounds', 'Invalid entry (' + ToStr(Which) + ')', Warn_AllVersions);
+    Exit;
+  end;
+
+  case I of
+    1 : Result := IntToBox(629, 213, 656, 240);
+    2 : Result := IntToBox(588, 252, 615, 279);
+    3 : Result := IntToBox(629, 252, 656, 279);
+    4 : Result := IntToBox(670, 252, 697, 279);
+    5 : Result := IntToBox(573, 291, 600, 318);
+    6 : Result := IntToBox(629, 291, 656, 318);
+    7 : Result := IntToBox(685, 291, 712, 318);
+    8 : Result := IntToBox(629, 331, 656, 358);
+    9 : Result := IntToBox(573, 371, 600, 398);
+    10: Result := IntToBox(629, 371, 656, 398);
+    11: Result := IntToBox(685, 371, 712, 398);
+  end;
+end;
+
+(*
+EquipmentCoords
+~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function EquipmentCoords(EquipSlot: Integer): TPoint;
+
+Returns X and Y of the coordinates of the specified equipment item
+
+.. note::
+
+    by DannyRS
+    Last Modified: Feb. 28th, 2013 by DannyRS
+
+Example:
+
+.. code-block:: pascal
+
+*)
+
+function EquipmentCoords(EquipSlot: Integer): TPoint;
+var
+  ETB: TBox;
+  ResPoint: TPoint;
+begin
+  Result := Point(-1,-1);
+  if not InRange(EquipSlot,1,11) then
+  begin
+    srl_warn('EquipmentCoords','Invalid EquipSlot('+inttostr(EquipSlot)+') passed',warn_AllVersions);
+    Exit;
+  end;
+  ETB := GetEquippedItemBounds(EquipSlot);
+  ResPoint.X := (Round(((ETB.X2-ETB.X1)/2)+ETB.X1));
+  ResPoint.Y := (Round(((ETB.Y2-ETB.Y1)/2)+ETB.Y1));
+  Result := ResPoint;
+end;
+
+(*
+MouseEquippedItem
+~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    procedure MouseEquippedItem(Which : String; Left : Integer);
+
+Mouses Equipped item like MouseItem.
+
+.. note::
+
+    by Nava2
+    Last Modified: Feb. 28th, 2013 by DannyRS
+
+Example:
+
+.. code-block:: pascal
+
+*)
+procedure MouseEquippedItem(Which: String; ClickType: Integer);
+var
+  B : TBox;
+begin
+  B := GetEquippedItemBounds(Which);
+  if (B.x1 = 0) and (B.x2 = 0) then Exit;
+  if (not GameTab(tab_Equip)) then Exit;
+  MouseBox(B.x1, B.y1, B.x2, B.y2, ClickType);
+end;
+
+(*
+WearingItem
+~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function WearingItem(i: Integer): Boolean;
+
+Results True if an item is equipped at equpiment slot defined by I.
+
+.. note::
+
+    by DannyRS
+    Last Modified: Feb. 28th, 2013 by DannyRS
+
+Example:
+
+.. code-block:: pascal
+
+*)
+function WearingItem(I: Integer): Boolean;
+var
+  X, Y: Integer;
+  STB: TBox;
+begin
+  Result := false;
+  if (not InRange(I, 1, 11)) then
+  begin
+    srl_Warn('WearingItem', 'Equipment slot #' + IntToStr(I) + ' is not a valid equipment slot', warn_Warning);
+    Exit;
+  end;
+  if (not Gametab(tab_Equip)) then exit;
+
+  STB := GetEquippedItemBounds(I);
+  Result := FindColor(X,Y,65536,STB.X1,STB.Y1,STB.X2,STB.Y2);
+end;
+
+(*
+TakeOff
+~~~~~~~
+
+.. code-block:: pascal
+
+    procedure TakeOff(I: Integer);
+
+UnEquips Item specified in I.
+
+.. note::
+
+    by DannyRS
+    Last Modified: Feb. 28th, 2013 by DannyRS
+
+Example:
+
+.. code-block:: pascal
+
+*)
+procedure TakeOff(I: Integer);
+var
+  SB: TBox;
+begin
+  SB := GetEquippedItemBounds(I);
+  if (WearingItem(I)) then
+  begin
+    MouseBox(SB.X1, SB.Y1, SB.X2, SB.Y2, mouse_left);
+    Wait(200 + Random(350));
+  end;
+end;
+
+(*
+TakeOffAllExcept
+~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    procedure TakeOffAllExcept(ExceptionSlots: TIntegerArray);
+
+Takes off equipped items defined by StripSlots.
+
+.. note::
+
+    by EvilChicken!
+    Last Modified: Feb. 28th, 2013 by DannyRS
+
+Example:
+
+.. code-block:: pascal
+
+*)
+procedure TakeOffAllExcept(ExceptionSlots: TIntegerArray);
+var
+  I: Integer;
+begin
+  for I := 1 to 11 do
+    if (not InIntArray(ExceptionSlots, I)) then
+      TakeOff(I);
+end;
+
+(*
+TakeOffAllItems
+~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    procedure TakeOffAllItems;
+
+Takes off all equipped items.
+
+.. note::
+
+    by EvilChicken!
+    Last Modified: Feb. 28th, 2013 by DannyRS
+
+Example:
+
+.. code-block:: pascal
+
+*)
+procedure TakeOffAllItems;
+begin
+  TakeOffAllExcept([]);
+end;
+
+(*
+CountEquippedItems
+~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function CountEquippedItems: Integer;
+
+Counts the amount of equipped items. Results "-1" if failed.
+
+.. note::
+
+    by EvilChicken!
+    Last Modified: Feb. 28th, 2013 by DannyRS
+
+Example:
+
+.. code-block:: pascal
+
+*)
+function CountEquippedItems: Integer;
+var
+  I: Integer;
+begin
+  Result := -1;
+  if (not GameTab(tab_Equip)) then Exit;
+
+  for I := 1 to 11 do
+    if WearingItem(I) then
+      Inc(Result);
+end;
+
+(*
+Gametab 7
+---------
+
+Gametab 7 related functions
+
+*)
+
+(*
+CastSpellByNumber
+~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function CastSpellByNumber(SpellNum: Integer): Boolean;
+
+casts a spell by its number (1-63)
+
+.. note::
+
+    by DannyRS
+    Last Modified: Feb. 28th, 2013 by DannyRS
+
+Example:
+
+.. code-block:: pascal
+
+*)
+function CastSpellByNumber(SpellNum: Integer): Boolean;
+var
+  R,C: Integer;
+  P: TPoint;
+Begin
+  Result:=False;
+  if (not InRange(SpellNum,1,63)) then
+  begin
+    srl_Warn('GameTab ', 'CastSpellByNumber ' + IntToStr(SpellNum)+ ' Invalid', Warn_AllVersions);
+    Exit;
+  end;
+  P := Point(571,239);
+  SpellNum:=SpellNum-1;
+  C := (Round(SpellNum/7));
+  R := (SpellNum -(C*7));
+  if GameTab(tab_Magic) then
+  begin
+    MouseBox(P.X+(R*24)-4, P.Y+(C*24)-4, P.X+(R*24)+4, P.Y+(C*24)+4, mouse_left);
+    Result:=True;
+  end;
+end;
+
+(*
+Gametab 8
+---------
+
+Gametab 8 related functions
+
+*)
+
+(*
+Gametab 9
+---------
+
+Gametab 9 related functions
+
+*)
+
+(*
+
+Gametab 10
+---------
+
+Gametab 10 related functions
+
+*)
+
+(*
+CurrentWorld
+~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function CurrentWorld: Integer;
+
+Returns current world from Friends Tab
+
+.. note::
+
+    by DannyRS
+    Last Modified: Feb. 28th, 2013 by DannyRS
+
+Example:
+
+.. code-block:: pascal
+
+*)
+function CurrentWorld: Integer;
+var
+  Box :TBox;
+  TPA :TPointArray;
+begin
+  Result := - 1;
+  if (not GameTab(tab_Friends)) then
+    Exit
+  else
+    Wait(250 + Random(100));
+  FindColors(TPA, 3381759, 695, 210, 725, 222);
+  Box := GetTPABounds(TPA);
+  Result := StrToIntDef(ExtractFromStr(GetTextAtExWrap(Box.X1, Box.Y1, Box.X2, Box.Y2,
+                      0, 5, 1, 3381759, 0, 'UpChars07'), Numbers), - 1);
+  if (Result = - 1) then
+    srl_Warn('CurrentWorld', 'Could not get Player''s current world', Warn_AllVersions);
+end;
+
+(*
+Gametab 11
+----------
+
+Gametab 11 related functions
+
+*)
+
+(*
+
+Gametab 12
+----------
+
+Gametab 12 related functions
+
+*)
+
+(*
+SetRun
+~~~~~~
+
+.. code-block:: pascal
+
+    function SetRun(Run: Boolean): Boolean;
+
+Sets Run on or off.
+
+.. note::
+
+    by DannyRS
+    Last Modified: Feb. 28th, 2013 by DannyRS
+
+Example:
+
+.. code-block:: pascal
+
+*)
+
+function SetRun(Run: Boolean): Boolean;
+var
+  CCount: Integer;
+begin
+  Result := False;
+  if (GameTab(tab_Options)) then
+  begin
+    CCount := CountColorTolerance(2369440, 647, 413, 682, 448, 20);
+    if (Run) then
+    begin
+      if (CCount<1) then
+        MouseBox(647, 413, 682, 448, mouse_left);
+      Result := True;
+    end else
+    begin
+      if (CCount>1) then
+        MouseBox(647, 413, 682, 448, mouse_left);
+      Result := True;
+    end;
+  end;
+end;
+
+(*
+GetCurrentHealth
+~~~~~~~~~
+
+.. code-block:: pascal
+
+    function GetCurrentHealth: Integer;
+
+Returns players current health.
+
+.. note::
+
+    by Flight
+    Last Modified:
+
+Example:
+
+.. code-block:: pascal
+
+*)
+function GetCurrentHealth: Integer;
+var
+  tpa : TPointArray;
+begin
+  tpa    := returnTPAExceptColors([4938344, 0], [20, 0], intToBox(522,56,541,69));
+  result := strToIntDef(getTextATPA(clusterTPAEx(tpa,1,10), 5, 'StatChars07'), 0);
+end;
+
+(*
+GetPrayerPoints
+~~~~~~~~~
+
+.. code-block:: pascal
+
+    function GetPrayerPoints: Integer;
+
+Returns players prayer points.
+
+.. note::
+
+    by Flight
+    Last Modified:
+
+Example:
+
+.. code-block:: pascal
+
+*)
+function GetPrayerPoints: Integer;
+var
+  tpa : TPointArray;
+begin
+  tpa    := returnTPAExceptColors([4938344, 0], [20, 0], intToBox(522,100,541,112));
+  result := strToIntDef(getTextATPA(clusterTPAEx(tpa,1,10), 5, 'StatChars07'), 0);
+end;
+
+(*
+GetRunEnergy
+~~~~~~~~~
+
+.. code-block:: pascal
+
+    function GetRunEnergy: Integer;
+
+Returns Players run energy.
+
+.. note::
+
+    by Flight
+    Last Modified:
+
+Example:
+
+.. code-block:: pascal
+
+*)
+function GetRunEnergy: Integer;
+var
+  tpa : TPointArray;
+begin
+  tpa    := returnTPAExceptColors([4938344, 0], [20, 0], intToBox(546,136,566,148));
+  result := strToIntDef(getTextATPA(clusterTPAEx(tpa,1,10), 5, 'StatChars07'), 0);
+end;
+
+(*
+IsUsingRun
+~~~~~~
+
+.. code-block:: pascal
+
+    function IsUsingRun: Boolean;
+
+Returns if player's run is set.
+
+.. note::
+
+    by Flight
+
+Example:
+
+.. code-block:: pascal
+
+*)
+function IsUsingRun: Boolean;
+var
+  tpa : TPointArray;
+begin
+  result := findColorsPie(TPA, 6806252, 20, 0, 360, 10, 72, 571, 127, 595, 152, 582, 140);
+end;
+
+(*
+IsUsingQP
+~~~~~~
+
+.. code-block:: pascal
+
+    function IsUsingQP: Boolean;
+
+Results if we're currently using quick-prayers
+
+.. note::
+
+    by Flight
+
+Example:
+
+.. code-block:: pascal
+
+*)
+function IsUsingQP: Boolean;
+begin
+  Result := (CountColorTolerance(14610138, 544, 90, 568, 114, 20) < 30);
+end;
+
+(*
+IsPoisoned
+~~~~~~
+
+.. code-block:: pascal
+
+    function IsPoisoned: Boolean;
+
+Returns if player is posioned or not.
+
+.. note::
+
+    by Flight
+
+Example:
+
+.. code-block:: pascal
+
+*)
+function IsPoisoned: Boolean;
+var
+  tpa : TPointArray;
+begin
+  result := findColorsPie(TPA, 88587, 30, 0, 360, 10, 72, 544, 46, 567, 69, 582, 140);
+end;
+
+(*
+getHealthPercent
+~~~~~~
+
+.. code-block:: pascal
+
+    function getHealthPercent: Integer;
+
+Returns players health percentage
+
+.. note::
+
+    by Flight
+
+Example:
+
+.. code-block:: pascal
+
+*)
+function getHealthPercent: Integer;
+var
+  tpa : TPointArray;
+begin
+  Result := 100;
+  findColorsPie(tpa, 1184274, 13, 0, 360, 0, 15, 541, 44, 571, 72, 556, 58);
+  if length(tpa) < 1 then Exit;
+  sortTPAByY(tpa, False);
+  result := (((70-tpa[0].y)*4)-2);
+  if result < 0 then result := 0;
+end;
+
+(*
+GetPrayerPercent
+~~~~~~
+
+.. code-block:: pascal
+
+    function GetPrayerPercent: Integer;
+
+Returns players prayer percentage
+
+.. note::
+
+    by Flight
+
+Example:
+
+.. code-block:: pascal
+
+*)
+function getPrayerPercent: Integer;
+var
+  l   : Integer;
+  tpa : TPointArray;
+begin
+  Result := 100;
+  findColorsPie(TPA, 1184274, 13, 0, 360, 0, 15, 541, 88, 571, 115, 556, 102);
+  l := (length(tpa)-10);
+  if l < 0 then l := 0;
+  result := round((100-(l/316)*100));
+end;
+
+(*
+ToggleMMOrb
+~~~~~~
+
+.. code-block:: pascal
+
+    function ToggleMMOrb(WhichORB: String; Enable: Boolean): Boolean;
+
+Enables or disables orb given by 'WhichOrb'
+
+.. note::
+
+    by elfyyy
+
+Example:
+
+.. code-block:: pascal
+
+*)
+function ToggleMMOrb(WhichORB: String; Enable: Boolean): Boolean;
+var
+  Box: TBox;
+begin
+  Result := True;
+  case LowerCase(WhichORB) of
+    'prayer', 'pray', 'qp' :
+    begin
+      Box := IntToBox(545, 90, 569, 112);
+      if (IsUsingQP) and (not Enable) then
+        MouseTBox(Box, MOUSE_LEFT);
+      if (not IsUsingQP) and (Enable) then
+        MouseTBox(Box, MOUSE_LEFT);
+      Exit;
+    end;
+
+    'run', 'energy':
+    begin
+      Box :=  IntToBox(569, 128, 594, 148);
+      if (IsUsingRun) and (not Enable) then
+        MouseTBox(Box, MOUSE_LEFT);
+      if (not IsUsingRun) and (Enable) then
+        MouseTBox(Box, MOUSE_LEFT);
+      Exit;
+    end;
+  end;
+
+  srl_Warn('ToggleMMOrb', WhichORB + ' Is not a valid Orb to check', warn_Warning);
+  Result := False;
+end;
+
+function toggleDataOrbs(Enable: Boolean): Boolean;
+begin
+  Result := ToggleMMOrb('run', Enable);
+end;
+
+function SetOrbs(State: Boolean): Boolean;
+begin
+  Result := ToggleMMOrb('run', State);
+end;
+
+(*
+RunEnergy
+~~~~~~~~~
+
+.. code-block:: pascal
+
+    function RunEnergy(Min: Integer): Boolean;
+
+Toggles run if energy is greater or equal to MinEnergy. Results
+true if energy is greater or equal to minimum.
+
+.. note::
+
+    by DannyRS
+    Last Modified: Feb. 28th, 2013 by DannyRS
+
+Example:
+
+.. code-block:: pascal
+
+*)
+function RunEnergy(Min: Integer): Boolean;
+var
+  CR: Integer;
+begin
+  Result := False;
+  CR := GetRunEnergy;
+  if (CR>=Min) then
+  begin
+    if SetRun(True) then Result := True;
+  end;
+end;
+
+(*
+SetBrightness
+~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function SetBrightness(Brightness:Integer): Boolean;
+
+sets the Brightness Graphics Option if LoggedIn
+returns true if changed.
+
+.. note::
+
+    by DannyRS
+    Last Modified: March, 2nd, 2013 by DannyRS
+
+Example:
+
+.. code-block:: pascal
+
+*)
+function SetBrightness(Brightness:Integer): Boolean;
+var
+  PA: TPointArray;
+  P: TPoint;
+begin
+  Result:=False;
+  if (not loggedin) then Exit;
+
+  if (not GameTab(tab_Options)) then exit;
+
+  if (not InRange(Brightness, 0, 4)) then
+    srl_Warn('GameTab ', 'SetBrightness must be between 0 and 4', warn_AllVersions)
+  else
+  begin
+    if (Brightness=0) then Exit;
+    SetLength(PA,4);
+    PA:= [Point(610,226),Point(641,226),Point(672,226),Point(706,226)];
+    P := PA[(Brightness - 1)];
+    if (not (GetColor(P.X, P.Y) = 16777215)) then
+    begin
+      MouseBox(P.X, P.Y, P.X+4, P.Y+4, mouse_left);
+      Result:=True;
+    end;
+  end;
+end;
+
+(*
+SetVolumeMusic
+~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function SetVolumeMusic(Volume:Integer): Boolean;
+
+sets the SoundEffects Volume Option if LoggedIn
+returns true if changed.
+
+.. note::
+
+    by DannyRS
+    Last Modified: March, 2nd, 2013 by DannyRS
+
+Example:
+
+.. code-block:: pascal
+
+*)
+function SetVolumeMusic(Volume:Integer): Boolean;
+var
+  PA: TPointArray;
+  P: TPoint;
+begin
+  Result:=False;
+  if (not loggedin) then Exit;
+
+  if (not GameTab(tab_Options)) then exit;
+
+  if (not InRange(Volume, 0, 5)) then
+    srl_Warn('GameTab ', 'SetVolumeMusic must be between 0 and 5', warn_AllVersions)
+  else
+  begin
+    if (Volume=0) then Exit;
+    SetLength(PA,5);
+    PA:= [Point(607,263),Point(631,263),Point(658,263),Point(684,263),Point(709,263)];
+    P := PA[(Volume - 1)];
+    if (not (GetColor(P.X, P.Y) = 16777215)) then
+    begin
+      MouseBox(P.X, P.Y, P.X+4, P.Y+4, mouse_left);
+      Result:=True;
+    end;
+  end;
+end;
+
+(*
+SetVolumeSoundEffect
+~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function SetVolumeSoundEffect(Volume:Integer): Boolean;
+
+sets the SoundEffects Volume Option if LoggedIn
+returns true if changed.
+
+.. note::
+
+    by DannyRS
+    Last Modified: March, 2nd, 2013 by DannyRS
+
+Example:
+
+.. code-block:: pascal
+
+*)
+function SetVolumeSoundEffect(Volume:Integer): Boolean;
+var
+  PA: TPointArray;
+  P: TPoint;
+begin
+  Result:=False;
+  if (not loggedin) then Exit;
+
+  if (not GameTab(tab_Options)) then exit;
+
+  if (not InRange(Volume, 0, 5)) then
+    srl_Warn('GameTab ', 'SetVolumeSoundEffect must be between 0 and 5', warn_AllVersions)
+  else
+  begin
+    if (Volume=0) then Exit;
+    SetLength(PA,5);
+    PA:= [Point(607,299),Point(631,299),Point(658,299),Point(684,299),Point(709,299)];
+    P := PA[(Volume - 1)];
+    if (not (GetColor(P.X, P.Y) = 16777215)) then
+    begin
+      MouseBox(P.X, P.Y, P.X+4, P.Y+4, mouse_left);
+      Result:=True;
+    end;
+  end;
+end;
+
+(*
+SetVolumeAreaSoundEffect
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function SetVolumeAreaSoundEffect(Volume:Integer): Boolean;
+
+sets the AreaSoundEffect Volume Option if LoggedIn
+returns true if changed.
+
+.. note::
+
+    by DannyRS
+    Last Modified: March, 2nd, 2013 by DannyRS
+
+Example:
+
+.. code-block:: pascal
+
+*)
+function SetVolumeAreaSoundEffect(Volume:Integer): Boolean;
+var
+  PA: TPointArray;
+  P: TPoint;
+begin
+  Result:=False;
+  if (not loggedin) then Exit;
+
+  if (not GameTab(tab_Options)) then exit;
+
+  if (not InRange(Volume, 0, 5)) then
+    srl_Warn('GameTab ', 'SetVolumeAreaSoundEffect must be between 0 and 5', warn_AllVersions)
+  else
+  begin
+    if (Volume=0) then Exit;
+    SetLength(PA,5);
+    PA:= [Point(607,336),Point(631,336),Point(658,336),Point(684,336),Point(709,336)];
+    P := PA[(Volume - 1)];
+    if (not (GetColor(P.X, P.Y) = 16777215)) then
+    begin
+      MouseBox(P.X, P.Y, P.X+4, P.Y+4, mouse_left);
+      Result:=True;
+    end;
+  end;
+end;
+
+//by Flight (17-10-2013)
+function setMouseButtons(Num: Integer): Boolean;
+begin
+  Result := False;
+  if not loggedin() then
+    Exit;
+
+  if (not gameTab(tab_Options)) then
+    Exit;
+
+  if not inRange(Num, 1, 2) then
+  begin
+    srl_Warn('setMouseButtons', 'Invalid number: ' + intToStr(Num) + ', please use 1/2', warn_AllVersions);
+    Exit;
+  end;
+
+  if (Num = 2) then
+  begin
+    if (countColorTolerance(1777019, 555, 361, 593, 400, 15) > 50) then
+    begin
+      Result := True;
+      Exit;
+    end else
+    begin
+      MouseBox(555, 361, 593, 400, mouse_left);
+      Result := True;
+      Exit;
+    end;
+  end else if (Num = 1) then
+    if (countColorTolerance(1777019, 555, 361, 593, 400, 15) > 50) then
+    begin
+      MouseBox(555, 362, 593, 400, mouse_left);
+      Result := True;
+      Exit;
+    end;
+end;
+
+//by Flight (17-10-2013)
+function toggleChatEffects(Enable: Boolean): Boolean;
+begin
+  Result := False;
+  if not loggedin() then
+    Exit;
+
+  if (not gameTab(tab_Options)) then
+    Exit;
+
+  if Enable then
+  begin
+    if (countColorTolerance(1777019, 601, 362, 638, 400, 15) > 50) then
+    begin
+      Result := True;
+      Exit;
+    end else
+    begin
+      MouseBox(601, 362, 638, 400, mouse_left);
+      Result := True;
+      Exit;
+    end;
+  end else if not Enable then
+    if (countColorTolerance(1777019, 601, 362, 638, 400, 15) > 50) then
+    begin
+      MouseBox(601, 362, 638, 400, mouse_left);
+      Result := True;
+      Exit;
+    end;
+end;
+
+//by Flight (17-10-2013)
+function toggleSplitChat(Enable: Boolean): Boolean;
+begin
+  Result := False;
+  if not loggedin() then
+    Exit;
+
+  if (not gameTab(tab_Options)) then
+    Exit;
+
+  if Enable then
+  begin
+    if (countColorTolerance(1777019, 646, 362, 683, 400, 15) > 50) then
+    begin
+      Result := True;
+      Exit;
+    end else
+    begin
+      MouseBox(646, 362, 683, 400, mouse_left);
+      Result := True;
+      Exit;
+    end;
+  end else if not Enable then
+    if (countColorTolerance(1777019, 646, 362, 683, 400, 15) > 50) then
+    begin
+      MouseBox(646, 362, 683, 400, mouse_left);
+      Result := True;
+      Exit;
+    end;
+end;
+
+//by Flight (17-10-2013)
+function toggleChatFilter(Enable: Boolean): Boolean;
+begin
+  Result := False;
+  if not loggedin() then
+    Exit;
+
+  if (not gameTab(tab_Options)) then
+    Exit;
+
+  if Enable then
+  begin
+    if (countColorTolerance(1777019, 691, 362, 728, 400, 15) > 50) then
+    begin
+      Result := True;
+      Exit;
+    end else
+    begin
+      MouseBox(691, 362, 728, 400, mouse_left);
+      Result := True;
+      Exit;
+    end;
+  end else if not Enable then
+    if (countColorTolerance(1777019, 691, 362, 728, 400, 15) > 50) then
+    begin
+      MouseBox(691, 362, 728, 400, mouse_left);
+      Result := True;
+      Exit;
+    end;
+end;
+
+//by Flight (17-10-2013)
+function toggleAcceptAid(Enable: Boolean): Boolean;
+begin
+  Result := False;
+  if not loggedin() then
+    Exit;
+
+  if (not gameTab(tab_Options)) then
+    Exit;
+
+  if Enable then
+  begin
+    if (countColorTolerance(1777019, 568, 413, 603, 449, 15) > 50) then
+    begin
+      Result := True;
+      Exit;
+    end else
+    begin
+      MouseBox(568, 413, 603, 449, mouse_left);
+      Result := True;
+      Exit;
+    end;
+  end else if not Enable then
+    if (countColorTolerance(1777019, 568, 413, 603, 449, 15) > 50) then
+    begin
+      MouseBox(568, 413, 603, 449, mouse_left);
+      Result := True;
+      Exit;
+    end;
+end;
+
+(*
+SetGraphics
+~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    procedure SetGraphics(Bright,MVol,SEVol,ASEVol: Integer; TNMB,TCE,TSPC,TAA: Boolean);
+
+Sets graphic options through the Graphics Screen in GameTab 12.
+Use: Enter the desired Setting for the desired Option.
+
+
+Parameter    Option                     Setting
+Bright       Screen Brightness          Level: 1-4 (0 no change)
+MVol         Music Volume               Level: 1-4 (0 no change)
+SEVol        Sound Effect Volume        Level: 1-4 (0 no change)
+ASEVol       Area Sound Effect Volume   Level: 1-4 (0 no change)
+TNMB         Toggle MouseButton Num     Off / On
+TCE          Toggle Chat Effects        Off / On
+TSPC         Toggle SPrivate Chat       Off / On
+TAA          Toggle Accept Aid          Off / On
+
+|                    1   2   3   4
+|  Brightness :   <--o---o---o---o-->
+
+|                    1  2  3  4  5
+|  Volumes :      <--o--o--o--o--o-->
+
+.. note::
+
+    by DannyRS
+    Last Modified: Oct. 17th, 2013 by Flight
+
+Example:
+
+.. code-block:: pascal
+
+    SetGraphics(4,1,1,1,True,True,True,False);
+
+*)
+procedure SetGraphics(Bright,MVol,SEVol,ASEVol,MBN: Integer; TCE,TSC,TCF,TAA: Boolean);
+begin
+  if (not LoggedIn) then exit;
+  if SetBrightness(Bright) then Wait(90 + Random(200));
+  if SetVolumeMusic(MVol) then Wait(90 + Random(200));
+  if SetVolumeSoundEffect(SEVol) then Wait(90 + Random(200));
+  if SetVolumeAreaSoundEffect(ASEVol) then Wait(90 + Random(200));
+  if setMouseButtons(MBN) then Wait(90 + Random(200));
+  if toggleChatEffects(TCE) then Wait(90 + Random(200));
+  if toggleSplitChat(TSC) then Wait(90 + Random(200));
+  if toggleChatFilter(TCF) then Wait(90 + Random(200));
+  if toggleAcceptAid(TAA) then Wait(90 + Random(200));
+end;
+
+(*
+FixGraphics
+~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    procedure FixGraphics;
+
+Fixes the Graphic Options if LoggedIn
+
+.. note::
+
+    by DannyRS
+    Last Modified: Oct. 17th, 2013 by Flight
+
+Example:
+
+.. code-block:: pascal
+
+*)
+procedure FixGraphics;
+begin
+  SetGraphics(4,0,0,0,2,True,True,False,False);
+end;
+
+(*
+
+Gametab 13
+----------
+
+Gametab 13 related functions
+
+*)
+
+(*
+DoEmote
+~~~~~~~
+
+.. code-block:: pascal
+
+    procedure DoEmote(EmoteNumber: Integer);
+
+Clicks on an emote specified by EmoteNumber (1 to 37)
+
+.. note::
+
+    by DannyRS
+    Last Modified: Feb. 28th, 2013 by DannyRS
+
+Example:
+
+.. code-block:: pascal
+
+*)
+procedure DoEmote(EmoteNumber: Integer);
+var
+  I,Row,Col: Integer;
+  P: TPoint;
+begin
+  if (not InRange(EmoteNumber, 1, 37)) then
+  begin
+    srl_Warn('DoEmote', 'Invalid EmoteNumber: ' + IntToStr(EmoteNumber) + ', Valid Emotes: 1..46', warn_AllVersions);
+    Exit;
+  end;
+
+  if (not LoggedIn)or (not GameTab(tab_Emotes)) then exit;
+
+  case EmoteNumber of
+    01..20: if (GetColor(721, 221) = 1777699) then
+              MouseBox(722, 222, 735, 240, mouse_left);
+    21..37: if (GetColor(721, 448) = 1777699) then
+              MouseBox(723, 425, 735, 446, mouse_left);
+  end;
+  Wait(100 + Random(200));
+  if InRange(EmoteNumber, 1, 20) then
+    I := 1
+  else
+    if InRange(EmoteNumber, 21, 37) then I := 21;
+  DecEx(EmoteNumber, I);
+
+  Col:=(Round(EmoteNumber/4));
+  Row :=(EmoteNumber -(Col*4));
+
+  P := Point(569+(Row*44),235+(Col*49));
+
+  MouseBox(P.X-3, P.Y-6, P.X+3, P.Y+6, mouse_left);
+end;
+
+(*
+GetMusic
+~~~~~~~~
+
+.. code-block:: pascal
+
+    function GetMusic: string;
+
+Gets the music that's currently playing.
+
+.. note::
+
+    by DannyRS
+    Last Modified: Feb. 28th, 2013 by DannyRS
+
+Example:
+
+.. code-block:: pascal
+
+*)
+function GetMusic: string;
+begin
+  Result := '';
+  if (not GameTab(tab_Music)) then Exit;
+  Wait(100 + Random(200));
+  Result := Trim(GetTextAtExWrap(550, 239, 730, 253, 0, 5, 1, 65280, 0, 'UpChars07'));
+end;
+
+(*
+CloseAllScreens
+~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function CloseAllScreens: boolean;
+
+Close BankScreen, DepositScreen, ShopScreen, ToolBeltScreen and the PinScreen.
+Returns true if any of them is closed.
+
+.. note::
+
+    by Tickyy
+    Last Modified: Feb. 28th, 2013 by DannyRS
+
+Example:
+
+.. code-block:: pascal
+
+    CloseAllScreens();
+
+*)
+function PinScreen: boolean; forward;
+function CloseAllScreens: boolean;
+var
+  I: Integer;
+begin
+  for I := 0 to 3 do
+  begin
+    case I of
+      0: Result := BankScreen;
+      1: Result := DepositScreen;
+      2: Result := ShopScreen;
+      3: Result := PinScreen;
+    end;
+
+    if Result then
+      if CloseWindow then
+      begin
+        Result := true;
+        Exit;
+      end else
+        Result := false;
+  end;
+end;

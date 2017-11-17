@@ -1,0 +1,275 @@
+//----------------------------------------------------------------------------//
+//--                     SRL Resource Library                               --//
+//--                       Prayer routines                                  --//
+//----------------------------------------------------------------------------//
+// * function GetPrayerBox(PrayerNumber: Integer): TBox;                    * //
+// * function GetPrayerPoint(PrayerNumber: Integer): TPoint;                * //
+// * function GetPrayerNumber(Name: Variant): Integer;                      * //
+// * function PrayerActivated(Name: Variant): Boolean;                      * //
+// * function HasPrayerLevel(Name: Variant): Boolean;                       * //
+// * function PrayerPoints: Integer;                                        * //
+// * function ClickPrayer(Name: Variant): Boolean;                          * //
+// * procedure TogglePrayers(Names: TVariantArray; Activate: Boolean);      * //
+// * procedure TogglePrayer(Name: Variant; Activate: Boolean);              * //
+// * procedure ToggleAllPrayersOff;                                         * //
+
+
+{*******************************************************************************
+function GetPrayerBox(PrayerNumber: Integer): TBox;
+By: DannyRS
+Description: Returns TBox of a prayer number 1-26
+*******************************************************************************}
+function GetPrayerBox(PrayerNumber: Integer): TBox;
+var
+  Row, Col: Integer;
+begin
+  Result := IntToBox(-1, -1, -1, -1);
+
+  if (not InRange(PrayerNumber, 1, 26)) then
+    Exit;
+
+  PrayerNumber := PrayerNumber - 1;
+  Row := Round(PrayerNumber / 5);
+  Col := PrayerNumber - (Row * 5);
+
+  Result := IntToBox(551 + (Col * 37), 214 + (Row * 37),
+                     584 + (Col * 37), 247 + (Row * 37));
+end;
+
+{*******************************************************************************
+function GetPrayerPoint(PrayerNumber: Integer): TPoint;
+By: DannyRS
+Description: Returns middle TPoint of a prayer number 1-26
+*******************************************************************************}
+function GetPrayerPoint(PrayerNumber: Integer): TPoint;
+var
+  Row, Col: Integer;
+begin
+  Result := Point(-1, -1);
+
+  if (not InRange(PrayerNumber, 1, 26)) then
+    Exit;
+
+  PrayerNumber := PrayerNumber - 1;
+  Row := Round(PrayerNumber / 5);
+  Col := PrayerNumber - (Row * 5);
+
+  Result := Point(567 + (Col * 37), 230 + (Row * 37));
+end;
+
+{*******************************************************************************
+function GetPrayerNumber(Name: Variant): Integer;
+By: DannyRS
+Description: Returns 1-26 position of a prayer string or int
+Note: Credits to Nielsie95 for typing out the list of names
+*******************************************************************************}
+function GetPrayerNumber(Name: Variant): Integer;
+begin
+  Result := -1;
+
+  if VariantIsString(Name) then
+  begin
+    case Capitalize(LowerCase(Name)) of
+      'Thick Skin', '1':             Result := 1;
+      'Burst Of Strength', '2':      Result := 2;
+      'Clarity Of Thought', '3':     Result := 3;
+      'Sharp Eye', '4':              Result := 4;
+      'Mystic Will', '5':            Result := 5;
+      'Rock Skin', '6':              Result := 6;
+      'Superhuman Strength', '7':    Result := 7;
+      'Improved Reflexes', '8':      Result := 8;
+      'Rapid Restore', '9':          Result := 9;
+      'Rapid Heal', '10':            Result := 10;
+      'Protect Items', '11':         Result := 11;
+      'Hawk Eye', '12':              Result := 12;
+      'Mystic Lore', '13':           Result := 13;
+      'Steel Skin', '14':            Result := 14;
+      'Ultimate Strength', '15':     Result := 15;
+      'Incredible Reflexes', '16':   Result := 16;
+      'Protect From Magic', '17':    Result := 17;
+      'Protect From Missiles', '18': Result := 18;
+      'Protect From Melee', '19':    Result := 19;
+      'Eagle Eye', '20':             Result := 20;
+      'Mystic Might', '21':          Result := 21;
+      'Retribution', '22':           Result := 22;
+      'Redemption', '23':            Result := 23;
+      'Smite', '24':                 Result := 24;
+      'Chivalry', '25':              Result := 25;
+      'Piety', '26':                 Result := 26;
+      else
+      begin
+        srl_Warn('GetPrayerCoords', 'Invalid Prayer Name', warn_Warning);
+      end;
+    end;
+  end else
+  if VariantIsInteger(Name) then
+  begin
+    if InRange(Name, 1, 26) then
+      Result := Name
+    else
+      srl_Warn('GetPrayerCoords', 'Invalid Prayer Number', warn_Warning);
+  end else
+    srl_Warn('GetPrayerCoords', 'Invalid Prayer Parameter Type', warn_Warning);
+end;
+
+{*******************************************************************************
+function PrayerActivated(Name: Variant): Boolean;
+By: DannyRS
+Description: Returns true if a prayer is toggled on
+*******************************************************************************}
+function PrayerActivated(Name: Variant): Boolean;
+var
+  PN: Integer;
+  TB: Tbox;
+begin
+  Result := False;
+
+  if (not FTab(TAB_PRAYER)) then
+    Exit;
+
+  PN := GetPrayerNumber(Name);
+
+  if (not InRange(PN, 1, 26)) then
+  begin
+    srl_Warn('PrayerActivated', 'Invalid Prayer', warn_Warning);
+    Exit;
+  end;
+
+  TB := GetPrayerBox(PN);
+
+  Result := (CountColor(7451338, TB.X1, TB.Y1, TB.X2, TB.Y2) > 5);
+end;
+
+{*******************************************************************************
+function HasPrayerLevel(Name: Variant): Boolean;
+By: DannyRS
+Description: Returns true if a prayer is able to be toggled on
+*******************************************************************************}
+function HasPrayerLevel(Name: Variant): Boolean;
+var
+  PN: Integer;
+  TB: Tbox;
+begin
+  Result := False;
+
+  if (not FTab(TAB_PRAYER)) then
+    Exit;
+
+  PN := GetPrayerNumber(Name);
+
+  if (not InRange(PN, 1, 26)) then
+  begin
+    srl_Warn('HasPrayerLevel', 'Invalid Prayer', warn_Warning);
+    Exit;
+  end;
+
+  TB := GetPrayerBox(PN);
+
+  Result := (CountColor(1, TB.X1, TB.Y1, TB.X2, TB.Y2) > 10);
+end;
+
+{*******************************************************************************
+function PrayerPoints: Integer;
+By: DannyRS
+Description: Returns prayer points from prayer tab
+*******************************************************************************}
+function PrayerPoints: Integer;
+begin
+  Result := -1;
+
+  if (not FTab(TAB_PRAYER)) then
+    Exit;
+
+  Result := StrToIntDef(ExtractFromStr(Trim(GetTextAtExWrap(600, 443, 650, 457,
+              0, 5, 1, 2070783, 0, 'UpChars07')), Numbers), -1);
+end;
+
+{*******************************************************************************
+function ClickPrayer(Name: Variant): Boolean;
+By: DannyRS
+Description: Left clicks a prayer if player has the level for it
+*******************************************************************************}
+function ClickPrayer(Name: Variant): Boolean;
+var
+  PN: Integer;
+  TB: Tbox;
+begin
+  Result := False;
+
+  if (not FTab(TAB_PRAYER)) then
+    Exit;
+
+  PN := GetPrayerNumber(Name);
+
+  if (not InRange(PN, 1, 26)) then
+  begin
+    srl_Warn('ClickPrayer', 'Invalid Prayer: ' + ToStr(Name), warn_Warning);
+    Exit;
+  end;
+
+  TB := GetPrayerBox(PN);
+
+  if HasPrayerLevel(PN) then
+  begin
+    MouseBox(TB.X1, TB.Y1, TB.X2, TB.Y2, Mouse_Left);
+    Result := True;
+  end;
+end;
+
+{*******************************************************************************
+procedure TogglePrayers(Names: TVariantArray; Activate: Boolean);
+By: DannyRS
+Description: Toggles a group of prayers on or off
+*******************************************************************************}
+procedure TogglePrayers(Names: TVariantArray; Activate: Boolean);
+var
+  i, PN: Integer;
+begin
+  if (not GameTab(TAB_PRAYER)) then
+    Exit;
+
+  for i := 0 to High(Names) do
+  begin
+
+    PN := GetPrayerNumber(Names[i]);
+
+    if (Activate) then
+    begin
+      if (not PrayerActivated(PN)) and (PrayerPoints > 0) then
+      begin
+        ClickPrayer(PN);
+        Wait(RandomRange(40, 130));
+      end;
+    end else
+    begin
+      if (PrayerActivated(PN)) and (PrayerPoints > 0) then
+      begin
+        ClickPrayer(PN);
+        Wait(RandomRange(40, 130));
+      end;
+    end;
+  end;
+end;
+
+{*******************************************************************************
+procedure TogglePrayer(Name: Variant; Activate: Boolean);
+By: DannyRS
+Description: Toggles a single prayer on or off
+*******************************************************************************}
+procedure TogglePrayer(Name: Variant; Activate: Boolean);
+begin
+  TogglePrayers([Name], Activate);
+end;
+
+{*******************************************************************************
+procedure ToggleAllPrayersOff;
+By: DannyRS
+Description: Tries to toggle all prayers off
+*******************************************************************************}
+procedure ToggleAllPrayersOff;
+var
+  i: Integer;
+begin
+  for i := 1 to 26 do
+    TogglePrayer(i, False);
+end;

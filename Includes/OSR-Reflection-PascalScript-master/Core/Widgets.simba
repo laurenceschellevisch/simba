@@ -1,0 +1,133 @@
+
+type
+  TInventoryItem = record
+    ID, Quantity, Slot: Integer;
+  end;
+
+  TInventoryItemArray = Array of TInventoryItem;
+
+function R_GetWidget(Index, ChildIndex: Integer): Integer;
+begin
+  Result := SmartGetFieldArray2DObject(SmartCurrentTarget, 0, Client_Widgets, Index, ChildIndex);
+end;
+
+function R_GetWidgetText(WidgetPointer: Integer): String;
+var
+  Text: Integer;
+begin
+  Text := SmartGetFieldObject(SmartCurrentTarget, WidgetPointer, Widget_Text);
+  Result := Trim(R_GetJavaString(Text, 1024));
+  SmartFreeObject(SmartCurrentTarget, Text);
+end;
+
+function R_GetInventoryItems: TInventoryItemArray;
+var
+  _Inventory, _InventorySlot, _ItemID, _ItemQuantity: Integer;
+begin
+  _Inventory := R_GetWidget(149, 0);
+  SetLength(Result, 28);
+  for _InventorySlot := 0 to 27 do begin
+    _ItemID := SmartGetFieldArrayInt(SmartCurrentTarget, _Inventory, Widget_InvIDs, _InventorySlot);
+    if (_ItemID > 0) then begin
+      _ItemQuantity := SmartGetFieldArrayInt(SmartCurrentTarget, _Inventory, Widget_StackSizes, _InventorySlot);
+      with Result[_InventorySlot] do begin
+        ID := _ItemID;
+        Quantity := _ItemQuantity;
+        Slot := _InventorySlot + 1;
+      end;
+    end;
+  end;
+  SmartFreeObject(SmartCurrentTarget, _Inventory);
+end;
+
+procedure R_ClickItemBy(ID: Integer; Option: String);
+var
+  I, pX, pY: Integer;
+  IB: TBox;
+  _Items: TInventoryItemArray;
+begin
+  _Items := R_GetInventoryItems;
+  for I := 0 to high(_items) do begin
+    if (_items[i].ID = ID) then begin
+      IB := InvBox(_Items[I].Slot);
+      GaussBox(pX, pY, IB.X1, IB.Y1, IB.X2, IB.Y2);
+      MMouse(pX, pY, 2, 2);
+      sleep(50 + random(25));
+      if (R_iSuptext(Option)) then
+        clickmouse2(mouse_Left)
+      else begin
+        clickmouse2(mouse_right);
+        sleep(25+random(20));
+        r_waitchooseoption(Option, 1000);
+      end;
+      exit;
+    end;
+  end;
+end;
+
+function R_InvFull: Boolean;
+var
+  I, C: Integer;
+  _Items: TInventoryItemArray;
+begin
+  _Items := R_GetInventoryItems;
+  for I := 0 to high(_items) do begin
+    if (_items[i].ID <> 0) then
+      inc(c);
+  end;
+  result := (c = 28);
+end;
+
+function R_InvCount: Integer;
+var
+  I: Integer;
+  _Items: TInventoryItemArray;
+begin
+  _Items := R_GetInventoryItems;
+  for I := 0 to high(_items) do begin
+    if (_items[i].ID <> 0) then
+      inc(result);
+  end;
+end;
+
+function R_InventoryContainsCount(IDs: TIntegerArray): Integer;
+var
+  I: Integer;
+  _Items: TInventoryItemArray;
+begin
+  _Items := R_GetInventoryItems;
+  for I := 0 to High(_items) do begin
+    if (InIntArray(IDs, _Items[I].ID)) then begin
+      inc(result);
+    end;
+  end;
+end;
+
+function R_InventoryContains(ID: Integer): Boolean;
+var
+  I: Integer;
+  _Items: TInventoryItemArray;
+begin
+  result := false;
+  _Items := R_GetInventoryItems;
+  for I := 0 to High(_items) do begin
+    if (_Items[I].ID = ID) then begin
+      result := True;
+      exit;
+    end;
+  end;
+end;
+
+function R_GetItemSlot(ID: Integer): Integer;
+var
+  I: Integer;
+  _Items: TInventoryItemArray;
+begin
+  _Items := R_GetInventoryItems;
+  for I := 0 to High(_items) do begin
+    if (_Items[I].ID = ID) then begin
+      result := _Items[I].Slot;
+      exit;
+    end;
+  end;
+end;

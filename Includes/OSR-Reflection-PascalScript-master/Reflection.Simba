@@ -1,0 +1,239 @@
+{$DEFINE REFLECTION}
+{$include SRL-OSR/SRL/Reflection/Core/Includes.simba}
+
+const
+  IncludeRevision = 100;
+
+(*
+CreateNewFiles
+~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    procedure CreateNewFiles;
+
+    Create reflection files which have been added since the first revision
+    Pulls the file path and URL from Files.txt on the Google Source-Code
+    Creates any new directories first by reading the file path
+
+.. note::
+
+  by Krazy_Meerkat
+
+*)
+procedure CreateNewFiles;
+var
+  NewFile, i, e: Integer;
+  NewFileName, DirectoryName: String;
+  Multi, Multi2: TStringArray;
+  Toggle: Boolean;
+begin
+  NewFileName:= GetPage('http://osrreflection.googlecode.com/git/Files.txt');
+  Multi:= MultiBetween(NewFileName, '(', ')');
+  for i:= 0 to high(Multi) do
+  begin
+    if not(Toggle) then
+    begin
+      NewFileName := includePath + 'SRL-OSR\SRL\' + Multi[i];
+      Multi2:= MultiBetween(Multi[i], '\', '\');
+      DirectoryName := includePath + 'SRL-OSR\SRL\Reflection';
+      for e:= 0 to high(Multi2) do
+      begin
+        DirectoryName := DirectoryName + '\' + Multi2[e];
+        if not(DirectoryExists(DirectoryName)) then
+          CreateDirectory(DirectoryName);
+      end;
+      Toggle:= true;
+    end else
+    begin
+      if not(FileExists(NewFileName)) then
+      begin
+        try
+          NewFile := CreateFile(NewFileName);
+          CloseFile(NewFile);
+          NewFile := Rewritefile(NewFileName, true);
+          WriteFileString(NewFile, GetPage(Multi[i]));
+          WriteLn('Added new file '+NewFileName);
+        except
+          begin
+            WriteLn('Fatal error writing to '+NewFileName+'!!');
+            Terminatescript;
+          end;
+        finally
+          CloseFile(NewFile);
+        end;
+      end;
+      Toggle:= false;
+    end;
+  end;
+end;
+
+(*
+DeleteOldFiles
+~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    procedure DeleteOldFiles;
+
+    Removes old reflection files which are no longer used
+
+.. note::
+
+  by Krazy_Meerkat
+
+*)
+procedure DeleteOldFiles;
+var
+  OldFileName: String;
+  i: Integer;
+  Multi: TStringArray;
+begin
+  OldFileName:= GetPage('http://osrreflection.googlecode.com/git/RemovedFiles.txt');
+  Multi:= MultiBetween(OldFileName, '(', ')');
+  for i:= 0 to high(Multi) do
+  begin
+    OldFileName := includePath + 'SRL-OSR\SRL\' + Multi[i];
+    if FileExists(OldFileName) then
+    begin
+      DeleteFile(OldFileName);
+      Writeln('Removed file '+Multi[i]);
+    end;
+  end;
+end;
+
+(*
+HooksUpdated
+~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function HooksUpdated: Boolean;
+
+  Checks to see if hooks are updated and if SetupSRL is above SetupReflection
+
+.. note::
+
+  by elfyyy
+
+*)
+function HooksValid: Boolean;
+begin
+  if MouseSpeed = 0 then
+  begin
+    Writeln('It appears SetupSRL is below SetupReflection in current script');
+    Writeln('Please Change the order in the mainloop. ~ Reflection');
+    terminatescript;
+  end;
+  if ((R_GetLoginState < 10) or (R_GetLoginState > 30)) then
+  begin
+    Writeln('Reflection Hooks are outdated');
+    Writeln('No need to post about it, we are currently working on it. ~ Reflection dev''s');
+    Result := False;
+  end else
+  Result := True;
+end;
+
+(*
+SetupReflection
+~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    procedure SetupReflection;
+
+Checks for a new version from the google source-code and updates all reflection files
+
+.. note::
+
+  by Krazy_Meerkat, Inspired by Shuttlue's simple updater
+
+*)
+procedure SetupReflection;
+var
+  NewFile, i: Integer;
+  OnlineVersion, NewFileName: String;
+  Multi: TStringArray;
+  Toggle: Boolean;
+begin
+  CreateNewFiles;
+  DeleteOldFiles;
+  OnlineVersion := GetPage('http://osrreflection.googlecode.com/git/Current%20Rev.txt');
+  if (trim(OnlineVersion) > ReflectionRevision) then
+  begin
+    writeLn('Hook update available!');
+    writeLn('Updating Hooks to R' + OnlineVersion);
+    try
+      NewFileName := includePath + 'SRL-OSR\SRL\Reflection\Core\' + 'Hooks.simba';
+      NewFile := Rewritefile(NewFileName, true);
+      WriteFileString(NewFile, GetPage('http://osrreflection.googlecode.com/git/Core/Hooks.simba'));
+      writeLn('Successfully updated '+NewFileName);
+    except
+      begin
+        writeLn('Fatal error writing to '+NewFileName+'!!');
+        terminatescript;
+      end;
+    finally
+      CloseFile(NewFile);
+      writeLn('Reflection update completed.');
+      writeLn('Please restart Simba.');
+      TerminateScript;
+    end;
+  end else
+  OnlineVersion := GetPage('http://osrreflection.googlecode.com/git/Include%20Rev.txt');
+  if (StrToInt(OnlineVersion) > IncludeRevision) then
+  begin
+    writeLn('Reflection update available!');
+    writeLn('Auto-Updating to Version #' + OnlineVersion);
+    NewFileName:= GetPage('http://osrreflection.googlecode.com/git/Files.txt');
+    Multi:= MultiBetween(NewFileName, '(', ')');
+    for i:= 0 to high(Multi) do
+    begin
+      if not(Toggle) then
+      begin
+        NewFileName := includePath + 'SRL-OSR\SRL\' + Multi[i];
+        Toggle:= true;
+      end else
+      begin
+        try
+          NewFile := Rewritefile(NewFileName, true);
+          WriteFileString(NewFile, GetPage(Multi[i]));
+          WriteLn('Successfully updated '+NewFileName);
+        except
+          begin
+            WriteLn('Fatal error writing to '+NewFileName+'!!');
+            Terminatescript;
+          end;
+        finally
+          CloseFile(NewFile);
+        end;
+        Toggle:= false;
+      end;
+    end;
+    // Reflection.Simba MUST be hardcoded here to prevent errors
+    try
+      NewFileName := includePath + 'SRL-OSR\SRL\Reflection\Reflection.simba';
+      NewFile := Rewritefile(NewFileName, true);
+      WriteFileString(NewFile, GetPage('http://osrreflection.googlecode.com/git/Reflection.Simba'));
+      writeLn('Successfully updated '+NewFileName);
+    except
+      begin
+        writeLn('Fatal error writing to '+NewFileName+'!!');
+        terminatescript;
+      end;
+    finally
+      CloseFile(NewFile);
+      writeLn('Reflection update completed.');
+      writeLn('Please restart Simba.');
+      TerminateScript;
+    end;
+  end;
+  if HooksValid then
+  begin
+    R_SetupRandoms;
+    R_SetupCurves;
+    Writeln('Reflection succesfully setup!');
+  end else
+    TerminateScript;
+end;
+

@@ -1,0 +1,601 @@
+(*
+Evil Bob
+========
+
+Stores all the routines to solve the Evil Bob random.
+
+
+*)
+
+const
+  DTM_EB_COUNT = 8;
+    DTM_EB_NET_INV      = 0;
+    DTM_EB_FISH_COOKED  = 1;
+    DTM_EB_FISH_RAW     = 2;
+    DTM_EB_STATUE_NORTH = 3;
+    DTM_EB_STATUE_EAST  = 4;
+    DTM_EB_STATUE_SOUTH = 5;
+    DTM_EB_STATUE_WEST  = 6;
+    DTM_EB_CENTER       = 7;
+
+var
+  EB_DTMs: array [0.. (DTM_EB_COUNT - 1)] of integer;
+
+(**
+ * Author: Justin
+ * Description: Returns true if player is in the random.
+ *)
+function EB_Detect(): boolean;
+begin
+  if (not (tabExists(TAB_MAGIC))) then
+    if (inRange(countDots('yellow'), 1, 2)) then
+      result := (not (tabExists(TAB_MAGIC)) and (GetMusic = 'Evil Bob''sIsland'));
+end;
+
+(**
+ * Author: Coh3n, DTMs by Justin
+ * Description: Sets the EB_DTMs array.
+ *)
+procedure EB_SetDTMs();
+var
+  i: integer;
+begin
+  EB_DTMs[DTM_EB_NET_INV] := DTMFromString('mAAEAAHic42FgYFBiY2BQA2JZIJYGYgkoWxmIVYFYCw0zMTEw/GJkYPgLxIxANisQswMxFxTzAjEbE0TdP6AaW1NdBh8nC4aEQFsGX2cLoI2McOxuoQ6m1WSFGTwtNcBsLiBJCmYkESMDAOBCCoY=');
+  EB_DTMs[DTM_EB_FISH_COOKED] := DTMFromString('mwQAAAHic42RgYLBnYmBwBGJbILYBYjsgdgViDyD2AWJfIH4OVPcEiB8yQNivofRjIH4ApbO99RhkLE4zBFkqg9kNcbYMuT76DFH26gy+ZooMsQ4aDPxAdYQwIxEYDgAsOBLV');
+  EB_DTMs[DTM_EB_FISH_RAW] := DTMFromString('mrAAAAHic42BgYHBgYmBwBGI7ILYHYlcg9gRiHyD2A+LnQDVPgPgxEL9igPAfAfF9qJhs2Q0GGcsLDBKJmxjkqx8yyJXfZhCPW8sgGjqHQTJlBwM/UA0+zEgAwwAAVtET5Q==');
+  EB_DTMs[DTM_EB_STATUE_NORTH] := DTMFromString('mwQAAAHic42RgYAjmYGAIAOIwII4C4mQgTgRiHyB2AWJnIOZgYmD4zcjA8AqI/wPxX0aImCAQ/wOyvwPxgjYLhutbfRhOrnRn2DDFDkyfXesFFru/N4Bh51xnBlagfYQwIxEYDgBpMhjA');
+  EB_DTMs[DTM_EB_STATUE_EAST] := DTMFromString('m1gAAAHic42JgYJjIwcDQA8SzgHgSELcAcScQd0DF+zkgak4yMjBsBuJtQLwbiA9CMUj8AhBfAuLbQHx1sw/D3d3+DHvmO4PZhxa7Mpxd68XwaH8AmP3sSBjD0m5rBlag3cRgRiIxAgAAwOEfgQ==');
+  EB_DTMs[DTM_EB_STATUE_SOUTH] := DTMFromString('m6wAAAHic42ZgYJjAwcDQC8QdQNwDxZOAeDIQTwHiaRwQNbOA+AgjA8MOIF4LxGeB+CoQnwHiC0B8F4h3A/EWIN4KxK0F+gxS4hwMycHKDFlRagxmuoIMTbm6DIUJGmC8tNuaYVaTGUN1hg4DK9Ad/ERiRhIwEgAABrsaIQ==');
+  EB_DTMs[DTM_EB_STATUE_WEST] := DTMFromString('mlwAAAHicY2dgYJjAwcDQC8STOCBsEO4D4olAzMbEwPCXkYHhNxB/BuKnQMwLFBMA4mgfeYatMx0Y8mLUGLpLDRkmVhkz3NzuxxAfoMjACjQXF2bEg6EAAHpXELY=');
+  EB_DTMs[DTM_EB_CENTER] := DTMFromString('mlwAAAHicY2dgYPBig2A7ILYBYncg9gfiCCCeDJSfA8QzgLgXiJuBuAmIe0BiVW4MGelSDPnp0gyVBXIMpblyDK3VSgxNlQoMrEB5XJgRD4YCABjvDbM=');
+  for i := 0 to high(EB_DTMs) do
+    setDTMName(EB_DTMs[i], 'Evil Bob ' + toStr(i));
+end;
+
+(**
+ * Author: Coh3n & DemiseScythe & Justin
+ * Description: Initial setup to solve the random.
+ *)
+procedure EB_Setup();
+begin
+  if (not loggedIn()) then
+    exit;
+  MakeCompass('n');
+  SetAngle(SRL_ANGLE_HIGH);
+  EB_SetDTMs();
+end;
+
+(**
+ * Author: Justin
+ * Description: Walks to the fishing nets and picks one up.
+ *)
+function EB_GetNet(): boolean;
+var
+  x, y, r, t, tmpCTS, i, arL: integer;
+  arP: TPointArray;
+  ararP: T2DPointArray;
+  P: TPoint;
+begin
+  if (not loggedIn()) then
+    exit;
+  addToSRLLog('EB_GetNet: Getting fishing net');
+  result := waitFindDTM(x, y, EB_DTMs[DTM_EB_NET_INV], 200);
+  if (not result) then
+  begin
+    TPAWalk(721128, 30, 5, - 5, point(MMX2, MMY2));
+    wait(2000 + random(500));
+    if (InvCount > 26) then
+    begin
+      addToSRLLog('Dropping items');
+      t := (getSystemTime + 5000);
+      repeat
+        r := randomRange(10, 16);
+        if (ExistsItem(r)) then
+        begin
+          DropItem(r);
+          wait(1000 + random(500));
+        end;
+      until ((InvCount <= 26) or (getSystemTime > t));
+    end;
+    tmpCTS := GetColorToleranceSpeed;
+    ColorToleranceSpeed(2);
+    SetColorSpeed2Modifiers(0.27, 1.22);
+    if (FindColorsTolerance(arP, 3161677, MSX1, MSY1, MSX2, MSY2, 9)) then
+    begin
+      SortTPAFrom(arP, Point(MSCX, MSCY));
+      ararP := SplitTPAEx(arP, 10, 10);
+      arL := High(ararP);
+      for i := 0 to arL do
+      begin
+        P := MiddleTPA(ararP[i]);
+        MMouse(P.x, P.y, 5, 5);
+        Wait(100 + Random(100));
+        if (IsUpTextMultiCustom(['Take Small', 'mall', 'fishing', 'net'])) then
+        begin
+          ClickMouse2(mouse_Left);
+          result := waitFindDTM(x, y, EB_DTMs[DTM_EB_NET_INV], 5000);
+          if (not result) then
+            addToSRLLog('EB_GetNet: Didn''t find DTM_EB_NET_INV');
+        end;
+        Break;
+      end;
+    end else
+      addToSRLLog('EB_GetNet: Didn''t click DTM_EB_NET_GROUND');
+  end;
+  ColorToleranceSpeed(tmpCTS);
+  SetColorSpeed2Modifiers(0.2, 0.2);
+  if (result) then
+    addToSRLLog('EB_GetNet: Got fishing net');
+end;
+
+(**
+ * Author: SRL Dev Team
+ * Description: Relocates the player to the center of the random
+ *)
+procedure EB_WalkToCenter;
+var
+  TPA: TPointArray;
+begin
+  if not LoggedIn then
+    Exit;
+  TPA := GetMiniMapDots('npc');
+  if High(TPA) = - 1 then
+  begin
+    WriteLn('Could Not walk to Middle?');
+    Exit;
+  end;
+  if not PointInBox(TPA[0], IntToBox(MMCX - 10, MMCY - 10, MMCX + 10, MMCY + 10)) then
+    if MouseFlag(TPA[0].X - 4, TPA[0].Y, 0, 4, 0) then
+      addToSRLLog('EB_WalkToCenter: At center');
+end;
+
+(**
+ * Author: Justin
+ * Description: Talks to slave to trigger what statue we need to fish at.
+ *)
+function EB_TalkToSlave(): boolean;
+var
+  arP: TPointArray;
+  ararP: T2DPointArray;
+  tmpCTS, i, arL: Integer;
+  P: TPoint;
+begin
+  if (not loggedIn()) then
+    exit;
+  addToSRLLog('EB_TalkToSlave: Talking to the Slave');
+  begin
+    tmpCTS := GetColorToleranceSpeed;
+    ColorToleranceSpeed(2);
+    SetColorSpeed2Modifiers(0.17, 1.85);
+    if (FindColorsTolerance(arP, 3437981, MSX1, MSY1, MSX2, MSY2, 17)) then
+    begin
+      SortTPAFrom(arP, Point(MSCX, MSCY));
+      ararP := SplitTPAEx(arP, 15, 15);
+      arL := High(ararP);
+      for i := 0 to arL do
+      begin
+        P := MiddleTPA(ararP[i]);
+        MMouse(P.x, P.y, 3, 3);
+        Wait(100 + Random(100));
+        if (IsUpTextMultiCustom(['alk-to S', 'erva'])) then
+        begin
+          ClickMouse2(mouse_Right);
+          result := ChooseOptionMulti(['Talk-to Servant', 'alk-to S', 'ervant']);
+          FFlag(0);
+          wait(400 + Random(400));
+          DoConversation('', true);
+          Break;
+        end;
+      end;
+      ColorToleranceSpeed(tmpCTS);
+      SetColorSpeed2Modifiers(0.2, 0.2);
+      if (i = arL + 1) then
+      begin
+        Exit;
+      end;
+    end else
+      addToSRLLog('EB_TalkToSlave: Unable to find Slave');
+  end;
+end;
+
+(**
+ * Author: Coh3n & DemiseScythe
+ * Description: Returns the statue we need to fish at.
+ *)
+function EB_GetStatue(): string;
+var
+  i, x, y, t: integer;
+  DTMs: TIntegerArray;
+  results: TStringArray;
+  aFound: extended;
+begin
+  if (not loggedIn()) then
+    exit;
+  addToSRLLog('EB_GetStatue: Identifying statue');
+  result := '';
+  t := (getSystemTime + 20000);
+  results := ['north', 'east', 'south', 'west'];
+  DTMs := [DTM_EB_STATUE_NORTH, DTM_EB_STATUE_EAST, DTM_EB_STATUE_SOUTH, DTM_EB_STATUE_WEST];
+  repeat
+    for i := 0 to high(DTMs) do
+      if (findDTMRotatedAlternating(EB_DTMs[DTMs[i]], x, y, MSX1, MSY1, MSX2, MSY2, - Pi / 4, Pi / 4, Pi / 30, aFound)) then
+      begin
+        result := results[i];
+        break;
+      end;
+  until ((result <> '') or (getSystemTime > t));
+  if (result <> '') then
+    addToSRLLog('EB_GetStatue: Found statue ''' + result + '''')
+  else
+    addToSRLLog('EB_GetStatue: Didn''t identify statue');
+  wait(3000 + random(500));
+  clickContinue(true);
+end;
+
+(**
+ * Author: Unknown - Credits to Flight
+ * Description: Sort TPAs into 2D TPAs through deduction, based on size and min count.
+ *)
+function ForceATPA(arr: TPointArray; wSize, hSize, minC: Integer): T2DPointArray;
+var
+  i: Integer;
+  arrBounds: TBox;
+  fPnts: TPointArray;
+  t2DArr: T2DPointArray;
+begin
+  repeat
+    fPnts := [];
+    t2DArr := [];
+    arrBounds := IntToBox(0, 0, 0, 0);
+    TPAtoATPAExWrap(arr, wSize, hSize, t2DArr);
+    if (Length(t2DArr) < 1) then
+      Exit;
+    arrBounds := GetTPABounds(t2DArr[0]);
+    with arrBounds do
+    begin
+      if ((arrBounds.X2 - arrBounds.X1) > wSize) then
+        arrBounds.X2 := arrBounds.X1 + wSize;
+      if ((arrBounds.Y2 - arrBounds.Y1) > hSize) then
+        arrBounds.Y2 := arrBounds.Y1 + hSize;
+      if ((arrBounds.X2 - arrBounds.X1) < wSize) then
+        arrBounds.X2 := arrBounds.X1 + wSize;
+      if ((arrBounds.Y2 - arrBounds.Y1) < hSize) then
+        arrBounds.Y2 := arrBounds.Y1 + hSize;
+    end;
+    for i := 0 to high(arr) do
+    begin
+      if PointInBox(arr[i], arrBounds) then
+      begin
+        SetArrayLength(fPnts, Length(fPnts) + 1);
+        fPnts[High(fPnts)] := arr[i];
+      end;
+    end;
+    if (GetArrayLength(t2DArr[0]) >= minC) then
+    begin
+      SetArrayLength(Result, Length(Result) + 1);
+      Result[High(Result)] := fPnts;
+    end;
+    ClearTPAFromTPAWrap(arr, fPnts, arr);
+  until (Length(arr) < 1)
+end;
+
+{$IFNDEF SIMBAMAJOR1000}
+{$IFNDEF LAPE}
+(**
+ * Author: riwu
+ * Description: Sort TPAs into 2D TPAs through deduction, based on size and min count.
+ *)
+function MedianTPA(TPA: TPointArray): TPoint;
+begin
+  if Length(TPA) < 0 then
+    Exit;
+  SortTPAFrom(TPA, Point(0, 0));
+  Result := TPA[Length(TPA) shr 1];
+end;
+{$ENDIF}
+{$ENDIF}
+
+(**
+ * Author: Justin - Credits to Flight
+ * Description: Find and clicks on the fishing spot.
+ *)
+function _Callback_EB_GetFish: Boolean;
+var
+  mP: TPoint;
+  Loop: Boolean;
+  TPA: TPointArray;
+  i, CTS, F: Integer;
+  ATPA: T2DPointArray;
+
+label
+  Start;
+begin
+  Result := False;
+  Loop := False;
+  CTS := GetColorToleranceSpeed;
+  Start: ColorToleranceSpeed(2);
+  SetColorSpeed2Modifiers(1.08, 2.06);
+  FindColorsSpiralTolerance(MSCX, MSCY, TPA, 13606057, MSX1, MSY1, MSX2, MSY2, 16);
+  if (Length(TPA) < 1) then
+  begin
+    ColorToleranceSpeed(CTS);
+    SetColorSpeed2Modifiers(0.2, 0.2);
+    Exit;
+  end;
+  ATPA := ForceATPA(TPA, 1, 1, 2);
+  SortATPAFromFirstpoint(ATPA, Point(MSCX, MSCY));
+  for i := 0 to High(ATPA) do
+  begin
+    mP := MedianTPA(ATPA[i]);
+    MMouse(mP.X, mP.Y, 5, 5);
+    if WaitUptextMulti(['Net', 'Fishing', 'spot'], 500) then
+    begin
+      ClickMouse2(mouse_Left);
+      Result := True;
+      Exit;
+    end else
+    begin
+      Inc(F);
+      if (F > 7) then
+        Exit;
+      Loop := True;
+      Break;
+    end;
+  end;
+  if Loop then
+  begin
+    Wait(150 + Random(200));
+    goto Start;
+  end;
+end;
+
+(**
+ * Author: Coh3n & DemiseScythe
+ * Description: Relocates to center, walks to fishing spots and returns true
+ * when cooked fish is found.
+ *)
+function EB_GetFish(Direction: string): boolean;
+var
+  x, y: integer;
+begin
+  if (not loggedIn()) then
+    exit;
+  addToSRLLog('EB_GetFish: Getting fish');
+  result := waitFindDTM(x, y, EB_DTMs[DTM_EB_FISH_COOKED], 200) or waitFindDTM(x, y, EB_DTMs[DTM_EB_FISH_RAW], 200);
+  EB_WalkToCenter();
+  if (not result) then
+  begin
+    case Direction of
+      'north': TPAWalk(5419185, 25, 10, 10, point(MMCX, MMY1));
+      'east':  TPAWalk(5419185, 25, 0, 0, point(MMX2, MMCY));
+      'south': TPAWalk(5419185, 25, 0, - 5, point(MMCX, MMY2));
+      'west':  TPAWalk(5419185, 25, 5, 0, point(MMX1, MMCY));
+    end;
+    wait(1500 + random(500));
+    if (waitFunc(@ _Callback_EB_GetFish, 50, 5000)) then
+    begin
+      if (didRedClick) then
+        if (waitFindDTM(x, y, EB_DTMs[DTM_EB_FISH_COOKED], 10000)) then
+          result := true
+        else
+          addToSRLLog('EB_GetFish: Didn''t find DTM_EB_FISH_COOKED');
+    end else
+      addToSRLLog('EB_GetFish: Didn''t click DTM_EB_FISHSPOT');
+  end;
+  if (result) then
+    addToSRLLog('EB_GetFish: Got fish')
+end;
+
+(**
+ * Author: Justin
+ * Description: Uses the cooked fish on the uncooking pot.
+ *)
+function EB_Uncook(): boolean;
+var
+  arP: TPointArray;
+  ararP: T2DPointArray;
+  tmpCTS, i, arL, x, y: Integer;
+  P: TPoint;
+begin
+  if (not loggedIn()) then
+    exit;
+  addToSRLLog('EB_Uncook: Uncooking the fish');
+  result := waitFindDTM(x, y, EB_DTMs[DTM_EB_FISH_RAW], 200);
+  EB_WalkToCenter();
+  if (not result) then
+  begin
+    if (findDTM(EB_DTMs[DTM_EB_FISH_COOKED], x, y, MIX1, MIY1, MIX2, MIY2)) then
+    begin
+      mouse(x, y, 5, 5, mouse_Right);
+      ChooseOption('Use');
+      tmpCTS := GetColorToleranceSpeed;
+      ColorToleranceSpeed(2);
+      SetColorSpeed2Modifiers(2.89, 0.38);
+      if (FindColorsTolerance(arP, 5990234, MSX1, MSY1, MSX2, MSY2, 12)) then
+      begin
+        SortTPAFrom(arP, Point(MSCX, MSCY));
+        ararP := SplitTPAEx(arP, 5, 5);
+        arL := High(ararP);
+        for i := 0 to arL do
+        begin
+          P := MiddleTPA(ararP[i]);
+          MMouse(P.x, P.y, 5, 5);
+          Wait(100 + Random(100));
+          if (WaitUptextMulti(['ng -> Unc', 'Use Fishlike thing -> Uncooking pot'], 500)) then
+          begin
+            ClickMouse2(mouse_Left);
+            Result := DidRedClick;
+            FFlag(0);
+            wait(600 + Random(400));
+            if (Result) then
+              waitFindDTM(x, y, EB_DTMs[DTM_EB_FISH_RAW], 10000);
+            Break;
+          end;
+        end;
+      end else
+      begin
+        writeln('EB_Uncook: Unable to find cooking pot');
+        result := false;
+      end;
+    end;
+  end;
+  if (result) then
+    addToSRLLog('EB_Uncook: Uncooked the fish');
+end;
+
+(**
+ * Author: Justin
+ * Description: Feeds Bob the raw fish.
+ *)
+function EB_FeedBob(): boolean;
+var
+  arP: TPointArray;
+  ararP: T2DPointArray;
+  tmpCTS, i, arL, x, y: Integer;
+  P: TPoint;
+begin
+  if (not loggedIn()) then
+    exit;
+  addToSRLLog('EB_FeedBob: Feeding Bob');
+  if (findDTM(EB_DTMs[DTM_EB_FISH_RAW], x, y, MIX1, MIY1, MIX2, MIY2)) then
+  begin
+    mouse(x, y, 5, 5, mouse_Left);
+    tmpCTS := GetColorToleranceSpeed;
+    ColorToleranceSpeed(2);
+    SetColorSpeed2Modifiers(4.93, 5.16);
+    if (FindColorsTolerance(arP, 1518877, MSX1, MSY1, MSX2, MSY2, 6)) then
+    begin
+      wait(1500 + random(500));
+      SortTPAFrom(arP, Point(MSCX, MSCY));
+      ararP := SplitTPAEx(arP, 10, 10);
+      arL := High(ararP);
+      for i := 0 to arL do
+      begin
+        P := MiddleTPA(ararP[i]);
+        MMouse(P.x, P.y, 5, 5);
+        Wait(100 + Random(100));
+        if (WaitUptextMulti(['ng -> Evil', 'Use Raw fishlike thing -> Evil Bob'], 500)) then
+        begin
+          ClickMouse2(mouse_Left);
+          Result := DidRedClick;
+          FFlag(0);
+          wait(600 + Random(400));
+          Break;
+        end;
+      end;
+      if (DoConversation('nap', false)) then
+      begin
+        result := true;
+        addToSRLLog('EB_FeedBob: Fed Bob');
+      end;
+      ColorToleranceSpeed(tmpCTS);
+      SetColorSpeed2Modifiers(0.2, 0.2);
+    end else
+      addToSRLLog('EB_FeedBob: Didn''t find Bob');
+  end else
+    addToSRLLog('EB_FeedBob: Didn''t find DTM_EB_FISH_RAW');
+end;
+
+(**
+ * Author: Justin
+ * Description: Finds the portal and exists the random event.
+ *)
+function EB_ExitRandom(): boolean;
+var
+  arP: TPointArray;
+  ararP: T2DPointArray;
+  tmpCTS, i, arL, x, y: Integer;
+  P: TPoint;
+begin
+  if (not loggedIn()) then
+    exit;
+  addToSRLLog('EB_ExitRandom: Feeding Bob');
+  begin
+    mouse(x, y, 5, 5, mouse_Left);
+    tmpCTS := GetColorToleranceSpeed;
+    ColorToleranceSpeed(2);
+    SetColorSpeed2Modifiers(0.03, 0.47);
+    if (FindColorsTolerance(arP, 6797494, MSX1, MSY1, MSX2, MSY2, 15)) then
+    begin
+      SortTPAFrom(arP, Point(MSCX, MSCY));
+      ararP := SplitTPAEx(arP, 5, 5);
+      arL := High(ararP);
+      for i := 0 to arL do
+      begin
+        P := MiddleTPA(ararP[i]);
+        MMouse(P.x, P.y, 2, 2);
+        Wait(100 + Random(100));
+        if (WaitUptextMulti(['Enter', 'nter', 'ortal'], 500)) then
+        begin
+          ClickMouse2(mouse_Left);
+          Result := DidRedClick;
+          FFlag(0);
+          wait(600 + Random(400));
+          Break;
+        end;
+      end;
+      ColorToleranceSpeed(tmpCTS);
+      SetColorSpeed2Modifiers(0.2, 0.2);
+    end else
+      addToSRLLog('EB_ExitRandom: Unable to find portal');
+  end;
+end;
+
+(**
+ * Author: Coh3n
+ * Description: Solves the Evil Bob random event.
+ *)
+function EB_Solve(): boolean;
+var
+  t: integer;
+  statue: string;
+begin
+  t := (getSystemTime + (5 * 60000));
+  EB_Setup();
+  repeat
+    if (EB_GetNet()) then
+    begin
+      EB_WalkToCenter();
+      wait(1000 + random(500));
+      if ((statue <> '') or (EB_TalkToSlave())) then
+      begin
+        if (findNPCChatTextMulti(['fallen', 'quick'], nothing)) then
+        begin
+          addToSRLLog('Already finished feeding Bob');
+          if (false) then
+            if (waitTabExists(TAB_MAGIC, 25000)) then
+            begin
+              result := true;
+              break;
+            end;
+        end;
+        if (statue = '') then
+          statue := EB_GetStatue();
+        if (statue <> '') then
+          repeat
+            if (EB_GetFish(statue)) then
+            begin
+              EB_WalkToCenter();
+              if (EB_Uncook()) then
+                if (EB_FeedBob()) then
+                begin
+                  if (EB_ExitRandom()) then
+                    result := WaitTabExists(TAB_MAGIC, 25000)
+                  else begin
+                    freeDTMs(EB_DTMs);
+                    exit;
+                  end;
+                end else
+              begin
+                statue := '';
+                break;
+              end;
+            end;
+          until (result or (getSystemTime > t));
+      end;
+    end;
+  until (result or (getSystemTime > t));
+  freeDTMs(EB_DTMs);
+  if (not result) then
+    addToSRLLog('EB_Solve: Evil Bob solver has failed or timed out');
+end;

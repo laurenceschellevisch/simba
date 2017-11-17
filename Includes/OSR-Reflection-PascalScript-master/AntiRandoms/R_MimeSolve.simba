@@ -1,0 +1,64 @@
+{* R_MimeSolve
++Detection and Solving
++By: Krazy_Meerkat
++
++*}
+
+function R_DetectMime: Boolean;
+var
+  me: Tpoint;
+begin
+  result:= false;
+  me:= R_GetTileGlobal;
+  if (((me.x > 2000) and (me.x < 2018)) and ((me.y > 4754) and (me.y < 4770))) then
+    result:= true;
+end;
+
+function R_SolveMime: Boolean;
+var
+  MimeEmote, lk, kl: Integer;
+  MimeNPC: TNPC;
+  NotPerforming: Boolean;
+begin
+  result:= false;
+  repeat
+    MimeEmote:= -1;
+    R_FindNpc('Mime', MimeNPC);
+    if (not(MimeNPC.Animation = -1) and not(MimeNPC.Animation = 858)) then
+    begin //scan emote
+    MimeEmote:= MimeNPC.Animation;
+    end;
+    if (MimeEmote > -1) then
+    begin //pick option
+      NotPerforming:= false;
+      repeat
+      wait(100 + random(50));
+      if (findcolortolerance(lk,kl,11503238, MCX1, MCY1, MCX2, MCY2, 9)) then
+        NotPerforming:= true;
+      until(NotPerforming);
+      wait(300 + random(350));
+      case MimeEmote of
+        866:  mouse(188, 426, 33, 5, mouse_left); //Dance
+        860:  mouse(117, 426, 17, 5, mouse_left); //Cry
+        1129: mouse(255, 427, 27, 4, mouse_left); //Lean on air
+        1128: mouse(368, 427, 20, 4, mouse_left); //Glass wall
+        1131: mouse(369, 391, 19, 4, mouse_left); //Glass box
+        1130: mouse(267, 388, 20, 5, mouse_left); //Climb rope
+        857:  mouse(114, 389, 26, 4, mouse_left); //Think
+        861:  mouse(194, 390, 27, 4, mouse_left); //Laugh
+      end;
+      case MimeEmote of
+        866:  writeln('Found Dance emote');
+        860:  writeln('Found Cry emote');
+        1129: writeln('Found Lean emote');
+        1128: writeln('Found Glass wall emote');
+        1131: writeln('Found Glass box emote');
+        1130: writeln('Found Climb rope emote');
+        857:  writeln('Found Think emote');
+        861:  writeln('Found Laugh emote');
+      end;
+    end;
+    wait(100 + random(50));
+  until(not(R_DetectMime));
+  result:= true;
+end;

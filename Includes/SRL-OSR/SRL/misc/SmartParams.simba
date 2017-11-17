@@ -1,0 +1,258 @@
+(*
+Smart Params
+============
+
+.. contents::
+
+*)
+
+{$loadlib libsmartremote}
+
+(*
+getWorld
+~~~~~~~~
+
+.. code-block:: pascal
+
+  function getWorld(): string;
+
+Grabs the 'Best World for me' or returns the user's prefered world.
+
+.. note::
+
+  By: Justin.
+
+Example:
+
+.. code-block:: pascal
+
+*)
+function getWorld(): string;
+begin
+  if (smart_World = 0) then
+  begin
+    writeln('Grabbing your best world...');
+    result := Between('a href="http://oldschool', '.runescape.com/j1', GetPage('http://oldschool.runescape.com/slu'));
+
+    // check if the result is a vaild world
+    if (length(result) > 0) then
+      if (inRange(strToIntDef(extractFromStr(result, numbers), -1), 1, 78)) then
+      begin
+        writeln('Found best world "' + result + '"');
+        exit;
+      end;
+    // else something failed, let's pick a random world
+    result := intToStr(randomRange(1, 78));
+  end else begin
+    result := IntToStr(smart_World);
+    writeln('Using user selected world "' + result + '"');
+  end;
+end;
+
+(*
+smartGetPIDs
+~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+     function smartGetPIDs(): TIntegerArray;
+
+Returns the PID's of all active non paired smart clients.
+
+.. note::
+
+    - By: Olly
+    - Last Updated: October 2, 2013 by Olly
+
+Example:
+
+.. code-block:: pascal
+
+*)
+function smartGetPIDs(): TIntegerArray;
+var
+  i, count: Integer;
+begin
+  count := smartGetClients(true);
+  setLength(result, count);
+
+  if (count > 0) then
+    for i := 0 to (count - 1) do
+      result[i] := SmartGetAvailablePID(i);
+end;
+
+function smartPairToExistingClient(): boolean;
+var
+  pidArr: TIntegerArray;
+  i, t, p: integer;
+  b: boolean;
+begin
+  result := false;
+
+  pidArr := smartGetPIDs();
+
+  if (length(pidArr) < 1) then
+  begin
+    writeln('No free clients to pair to');
+    exit;
+  end;
+
+  writeln('Found ' + intToStr(length(pidArr)) + ' free client(s), attempting to pair to one...');
+
+  for i := 0 to high(pidArr) do
+  begin
+    t := 0;
+    t := SmartPairClient(pidArr[i]);
+
+    if (t <> 0) then
+    begin
+       p := pidArr[i];
+
+       try
+         setEIOSTarget('libsmartremote', intToStr(p));
+         writeln('Set SMART['+ intToStr(p) +'] as Simba''s target');
+         b := true;
+       except
+         writeln('Failed to set SMART['+ intToStr(p) +'] as Simba''s target');
+         b := false;
+       end;
+
+       if (b) then
+       begin
+         smartCurrentPID := p;
+         smartCurrentTarget := t;
+
+         if (not smartEnabled(smartCurrentTarget)) then
+           smartSetEnabled(smartCurrentTarget, true);
+
+         writeln('Succesfully paired to a existing client, SMART['+ intToStr(smartCurrentPID) +']');
+         addOnTerminate('smartFreeCurrentClient');
+
+         result := true;
+         exit;
+       end;
+    end else begin
+      writeln('Failed to pair to SMART['+ intToStr(pidArr[i]) +']');
+      smartFreeClient(t);
+    end;
+  end;
+end;
+//From SimbaEx
+Function getDirectoryName(Directory, Path: String): String;
+var
+  I: Integer;
+  Directories: TStringArray;
+Begin
+  Directories := GetDirectories(Path);
+  For I := 0 To High(Directories) Do
+    If ExecRegExpr(Directory, Directories[I]) Then
+    Begin
+      Result := Directories[I];
+      Exit;
+    End;
+End;
+//From SimbaEx
+Function findDirectory(Directory, Path: String): Boolean;
+Begin
+  Result := Length(GetDirectoryName(Directory, Path)) > 0;
+End;
+
+// by Brandon
+Function getJavaPath(Console: Boolean): String;
+var
+  Drive: String;
+  CurrentPath: String;
+Begin
+  Drive := Copy(PluginPath, 0, 3);
+
+  If (FindDirectory('Program\sFiles\s\(x86\)', Drive)) Then
+  Begin
+    CurrentPath := Drive + 'Program Files (x86)\';
+  End Else
+    CurrentPath := Drive + 'Program Files\';
+
+  If (FindDirectory('Java|java', CurrentPath + '\')) Then
+  Begin
+    CurrentPath := CurrentPath + 'Java\';
+  End Else
+    Begin
+      Writeln('Failed To Find Path: ' + CurrentPath + 'Java\');
+      Exit;
+    End;
+
+  Drive := GetDirectoryName('jre', CurrentPath);
+  If (Length(Drive) > 0) Then
+  Begin
+    If (Console) Then
+      CurrentPath := CurrentPath + Drive + '\bin\java.exe'
+    Else
+      CurrentPath := CurrentPath + Drive + '\bin\javaw.exe';
+  End Else
+    Begin
+      Drive := GetDirectoryName('jdk', CurrentPath);
+      If (Console) Then
+      CurrentPath := CurrentPath + Drive + 'jre\bin\java.exe'
+    Else
+      CurrentPath := CurrentPath + Drive + 'jre\bin\javaw.exe';
+    End;
+
+  If (FileExists(CurrentPath)) Then
+    Result := CurrentPath
+  Else
+    writeln('Failed To Find Java.exe or Javaw.exe. Please add ...\JRE\Bin to your PATH environment variable.');
+End;
+
+procedure initSmart(forceNewClient: boolean);
+var
+  params: array [0..1] of string;
+  Path: string;
+begin
+  if (not forceNewClient) then
+  begin
+    writeln('Attempting to pair to a smart client..');
+
+    if (smartPairToExistingClient) then
+      exit;
+
+    writeln('Failed to pair to any smart previously spawned smart clients');
+  end;
+
+  writeln('Attempting to spawn a client');
+  Path := getJavaPath(False);
+  params[0] := 'http://oldschool'+ getWorld() +'.runescape.com/';
+  params[1] := 'j1';
+
+  smartCurrentTarget := 0;
+  smartCurrentTarget := SmartSpawnClient(Path, replaceWrap(PluginPath, '\', '/', [rfReplaceAll]), params[0], params[1], 765, 503, '', '', '', '');
+
+  if (smartCurrentTarget <> 0) then
+  begin
+    writeln('Succesfully spawned a client, attempting to target...');
+    smartCurrentPID := smartGetClientPID(smartCurrentTarget);
+
+    try
+      setEIOSTarget('libsmartremote', intToStr(smartCurrentPID));
+      writeln('Set SMART['+ intToStr(smartCurrentPID) +'] as Simba''s target');
+    except
+      writeln('Fatal Error: Failed to set SMART['+ intToStr(smartCurrentPID) +'] as Simba''s target');
+      terminateScript;
+    end;
+
+    addOnTerminate('smartFreeCurrentClient');
+  end else begin
+    writeln('Fatal Error: Unable to spawn a SMART client');
+    writeln('HINT: Make sure you have the lastest java version, and try running simba as admin');
+    terminateScript();
+  end;
+end;
+
+procedure smartFreeCurrentClient();
+begin
+  try
+    smartFreeClient(smartCurrentTarget);
+    writeln('Succesfully freed SMART[' + intToStr(smartCurrentPid) + ']');
+  except
+    writeln('Error freeing SMART[' + intToStr(smartCurrentPid) + ']');
+  end;
+end;
+

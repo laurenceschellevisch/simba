@@ -1,0 +1,647 @@
+(*
+Globals
+=======
+
+
+.. contents::
+
+*)
+
+type
+  TBooleanArray = array of Boolean;
+
+{ const SRLVersionNumber;
+  Description: Repository Version Number. }
+const
+  SRLVersionNumber = 38;
+
+{ var TalkAfterRandoms: Boolean;
+  Description: Talk random phrases after randoms are detected/solved. }
+var
+  TalkAfterRandoms: Boolean;
+
+{ var WorldSwitcherEnabled: Boolean;
+  Description: Enables world switching. }
+
+var
+  WorldSwitcherEnabled: Boolean;
+
+{ var FriendChars, LoginChars: Integer;
+  Description: Fonts used internally and for use in scripts. }
+{$IFDEF LoadExtraFonts}
+var
+  FriendChars, LoginChars: Integer;
+{$ENDIF}
+
+{ var bmpAdmin, bmpMod, bmpMinimapMask, Lamp, BookOfKnowledge, SRL_OPTIONS_BITMAP: Integer;
+  Description: Global Bitmaps and DTMs.}
+var
+  bmpAdmin, bmpMod, bmpMinimapMask, Lamp, BookOfKnowledge: Integer;
+
+{ var RoadColor, WaterColor, BankColor: Integer;
+  Description: Three variables you will almost always use. :) }
+var
+  RoadColor, WaterColor, BankColor: Integer;
+
+{ var LampSkill: String;
+  Description: Set Lamp skill. }
+var
+  LampSkill: string; // no longer used
+
+var
+  SRL_DisableIPLog: boolean;
+
+{ const srl_outline_black
+  Description: Black Color outline}
+const
+  srl_outline_black = 65536;
+  srl_outline_white = clWhite;
+
+{ const MMX1, MMY1, MMX2, MMY2;
+  Description: MiniMap Edge Points. }
+const
+  MMX1 = 570;
+  MMY1 = 9;
+  MMX2 = 716;
+  MMY2 = 155;
+
+{ const MMCX, MMCY;
+  Description: MiniMap Centre Point. }
+const
+  MMCX = 643;
+  MMCY = 83;
+
+{ const MSX1, MSY1, MSX2, MSY2;
+  Description: Main Screen EdgePoints. }
+const
+  MSX1 = 4;
+  MSY1 = 4;
+  MSX2 = 515;
+  MSY2 = 337;
+
+{ const MSCX, MSCY;
+  Description: Main Screen Centre Points. }
+const
+  MSCX = 259;
+  MSCY = 170;
+
+{ const MIX1, MIY1, MIX2, MIY2;
+  Description: Inventory EdgePoints. }
+const
+  MIX1 = 547;
+  MIY1 = 204;
+  MIX2 = 736;
+  MIY2 = 465;
+
+{ const MICX, MICY;
+  Description: Inventory Centre Points. }
+const
+  MICX = 641;
+  MICY = 335;
+
+{ const MCX1, MCY1, MCX2, MCY2;
+  Description: Chat Screen EdgePoints. }
+const
+  MCX1 = 7;
+  MCY1 = 345;
+  MCX2 = 512;
+  MCY2 = 473;
+
+{ const MCCX, MCCY;
+  Description: Chat Screen Centre Points. }
+const
+  MCCX = 259;
+  MCCY = 409;
+
+{ const MBX1, MBY1, MBX2, MBY2;
+  Description: BankScreen EdgePoints (where you click the items, does not include tabs). }
+const
+  MBX1 = 79;
+  MBY1 = 62;
+  MBX2 = 439;
+  MBY2 = 283;
+
+{ const MBCX, MBCY;
+  Description: Bank Screen Centre Points. }
+const
+  MBCX = 259;
+  MBCY = 172;
+
+{ const DBX1, DBY1, DBX2, DBY2;
+  Description: Deposit box edgepoints (only where the item appear) }
+const
+  DBX1 = 131;
+  DBY1 = 75;
+  DBX2 = 402;
+  DBY2 = 232;
+
+{ const DBCX, DBCY;
+  Description: Deposit Box Screen Centre Points. }
+const
+  DBCX = 266;
+  DBCY = 153;
+
+{ const SRL_Procs Constants;
+  Description: Constants for SRL_Procs. }
+const
+  srl_AntiBan          = 0;   // Your AntiBan procedure to be called during various SRL functions and procedures. (Flag, FFlag)
+  srl_OnFindMod        = 1;   // After a player or Jagex mod is detected talking in the chat box.
+  srl_OnFindDead       = 2;   // After the text 'Oh dear you are dead' is detected.
+  srl_OnFindFight      = 3;   // After detecting a fighting random.
+  srl_OnFindTrade      = 4;   // After the trade has been attempted (either success or failure).
+  srl_OnNextPlayer     = 5;   // While the players are logged out and before CurrentPlayer changes.
+  srl_OnSendStats      = 6;   // After SRL Script Stats are sent to the server.
+  srl_OnRandomCall     = 7;   // Called in FindNormalRandoms, FindInventoryRandoms, FindNonInventoryRandoms. (NOT ONLY WHEN RANDOMS ARE DETECTED).
+  srl_OnFindRandom     = 8;   // After a random event is detected. (FNR, FIR, FNIR, FT)
+  srl_OnLogOut         = 9;   // Just before the player is logged out.
+  srl_InNextPlayerLoop = 10;  // During the infinite loop in NextPlayer when all players are inactive.
+  srl_OnCustomRC       = 11;  // When custom RC trigger has been given.
+  srl_OnExitToLobby    = 12;  // On exit to lobby
+  srl_OnLogIn          = 13;  // Right after player has successfully logged in.
+  srl_OnRSUpdate       = 14;  // Called in LoginPlayerToLob if RuneScape updates.
+
+{ var SRL_Procs: array [0..14] of procedure();
+  Description: Varibles to store user-defined procs to be called in SRL. }
+var
+  SRL_Procs: array [0..14] of procedure();
+  SRL_OnFindRandomCall : function(var Cont : boolean) : boolean; // no longer used
+  SRL_CombatRandoms : boolean;
+  SRL_FindRandomRunDirection : tstringarray;
+
+{ const GameTab Constants;
+  Description: Constants representing gametab numbers. }
+const
+  tab_Combat = 21;
+  tab_Stats = 22;
+  tab_Quest = 23;
+  tab_Inv = 24;
+  tab_Equip = 25;
+  tab_Prayer = 26;
+  tab_Magic = 27;
+  tab_Clan = 28;
+  tab_Friends = 29;
+  tab_Ignore = 30;
+  tab_LogOut = 31;
+  tab_Options = 32;
+  tab_Emotes = 33;
+  tab_Music = 34;
+
+{ const Antirandoms Constants;
+  Description: Constants representing randoms index. }
+const
+  rand_Count = 25;
+
+  rand_Leo = 0;
+  rand_Forester = 1;
+  rand_Maze = 2;
+  rand_PrisonPete = 3;
+  rand_ScapeRune = 4;
+  rand_Demon = 5;
+  rand_Quiz = 6;
+  rand_Mordaut = 7;
+  rand_Molly = 8;
+  rand_Pinball = 9;
+  rand_Sandwich = 10;
+  rand_BeeKeeper = 11;
+  rand_Pillory = 12;
+  rand_CapnArnav = 13;
+  rand_Abyss = 14;
+  rand_Certer = 15;
+  rand_Mime = 16;
+  rand_Frog = 17;
+
+  rand_Trade = 18;
+  rand_Mod = 19;
+  rand_Fight = 20;
+  rand_Lamp = 21;
+  rand_BirdNest = 22;
+  rand_Death = 23;
+  rand_RewardBox = 24;
+
+var
+  tmp_RandSolved: array[0..rand_Count-1] of Integer;
+  tmp_RandFailed: array[0..rand_Count-1] of integer;
+
+{ type TAutoColorInfo;
+  Description: Set of information that can be used in some functions. }
+type
+  TAutoColorInfo = record
+    Name: string;
+    Color: Integer;
+    ColorArray: TIntegerArray;
+    MinCount: Integer;
+    MaxCount: Integer;
+    MaxDist: Integer;
+    MaxDistCenter: Integer;
+    UpText: string;
+    UpTextMulti: TStringArray;
+    HueMod, SatMod: Extended;
+    LumTol: Integer;
+    MinR, MaxR, MinG, MaxG, MinB, MaxB: Integer;
+    MinX, MaxX, MinY, MaxY, MinZ, MaxZ: Extended;
+end;
+
+{ type fnct_ActionOptions;
+  Description: Action options. }
+type
+  fnct_ActionOptions = (ClickRight,ClickLeft,ClickMiddle,Move,Nothing);
+
+var
+{ var ACArr
+  Description: Stores the information needed for the autocolour functions }
+  acArr: array of TAutoColorInfo;
+
+{ var isACLoaded
+  Description: Boolean array to make sure that all TAutoColorInfos are loaded
+               prior to calling. Optimizes AutoColors significantly }
+  isACLoaded: array of Boolean;
+
+{ vars For Smart}
+{$IFDEF SMART}
+var
+  Smart_ForceNew: Boolean;
+  Smart_World: Integer;
+  smartCurrentTarget: integer;
+  smartCurrentPID: integer;
+{$ENDIF}
+
+{ var WarnSensitivity: Integer
+  Description: var for srl_Warn. }
+var
+  WarnSensitivity: Integer; //-2 will show Warnings and above, -3 notices too.
+
+{ const srl_Warn Constants;
+  Description: Constants for srl_Warn. }
+const
+  warn_AllVersions = 0;
+  warn_Terminate = -1;
+  warn_Warning = -2;
+  warn_Notice = -3;
+  warn_Debug = -4;
+
+{var   SRLBitmapsLoaded : boolean;
+  Description: True if SRL bmps/DTMs are loaded}
+var
+  SRLBitmapsLoaded : boolean;
+
+(*
+SRL_HasProc
+~~~~~~~~FreeSRLBitmaps;~~~
+
+.. code-block:: pascal
+
+    procedure SRL_HasProc;
+
+Checks if userproc is defined at index.
+
+.. note::
+
+    by SRL Dev Team
+
+Example:
+
+.. code-block:: pascal
+
+*)
+function SRL_HasProc(Index: Integer): Boolean;
+begin
+  if (Index >= Low(SRL_Procs)) and (Index <= High(SRL_Procs)) then
+    Result := {$IFDEF LAPE}@{$ENDIF}SRL_Procs[Index] <> nil;
+end;
+
+(*
+LoadSRLBitmaps
+~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    procedure LoadSRLBitmaps;
+
+Loads SRL Bitmaps into memory.
+
+.. note::
+
+    by SRL Dev Team
+
+Example:
+
+.. code-block:: pascal
+
+*)
+procedure LoadSRLBitmaps;
+begin
+  bmpMod := BitmapFromString(9, 6, 'beNqbPn0RWeDBgwdAkgEMkBnT' +
+       'p0+HS6GR+KVwAgAGXFQr');
+  bmpAdmin := BitmapFromString(9, 6, 'beNqbp/j9PwcZ6P//FiDJAA' +
+       'bIjGvzFOFSaCR+KZwIALniVEk=');
+
+  bmpMinimapMask := BitmapFromString(147, 147, 'meJzt3V1u01AYBuHsf8kQCqqQ' +
+        'UmiC4/jnzJkyzwo+v3PhG0u+XL6On4vo6/5ry2n2oJ/sazqvVwXPM' +
+        'LJXBfdje92j95gd3ec5eqG50DW2oDeD0fPvRe8HoCc/Er3lOPTSx6' +
+        'MXPR098LnodU9BjzoOvfRh6CEZ9Op70fuR6O23o5fj0QVeRg82F7r' +
+        'GWvROM6KbPEcvNC+6zBJ6m9nRfR6gJzGhW32gl/Chi72jN7CqmlfV' +
+        'vKrmVTWvwklVzatqXlXzqppX4aSq5lU1r6p5FU6qal6Fk6qaV+Gkq' +
+        'uZVNa/CSVXNq3BSVfMqnFThpKrmVTipwklVzatwUoWTKpxU1bwKJ1' +
+        'U4qapJFU6qcEa94KQKJ1U4qcJJFU6qcFKFkyqcVOGkCidVOKnCSRV' +
+        'Oqk8XjC5/o8/JWoWTKpxU4aQKJ1U4qcsd+qI8d1+tcAqFkyqcVOGk' +
+        'CidVOKmH4Wo3uX9VK9zkCie1EK5201quVrhpFU7qabjaTWhNtcJNq' +
+        'HBbvL3RF/TfgS1+XK/sAeurFe5P12/f2QNeCle7Gzbcq9UKd6MLVz' +
+        'vctmqFw20OVzvQnmq1o+yvVrvxjqpWuMEODFe7YY6tVrsxzqhWu7O' +
+        'dV618JxmQrHaHG1mtdkcZX618O4HJbugNfOhin9F7zI7u8wQ9z4zo' +
+        'JmvRO82FrvEyejAeXWA7ejkSvf0B6AlHo/c+Er3lOPTSp6BHPRe97' +
+        'unogY9HLzoOvfSR6C0B9OR70fuR6O23o5ebAh3hNfRac6FrrEXvNC' +
+        'O6yXP0QvOiyyyht5kd3ecxehUHutJn9B4mdKsP9BI+dLF39AZWVfO' +
+        'qmlfVpAonVTivqkkVTqpwXlXzqppaybyq9tsv47Li7Q==');
+
+  Lamp := DTMFromString('mggAAAHicY2NgYMhhYmDIAOIyIK4A4kIgTgPip0C5B0D8kAHCfgXEz4F46hRRIMkExn29ImB6zSoJBn4GBOBHohlxYAgAACyDDBw=');
+  BookOfKnowledge := DTMFromString('mbQAAAHicY2VgYMhmYmAoAOJYIM4A4mogfgwU/wTE' +
+    'r4H4KhDfBuL81BQgyYiGMQG6CrgqAHffB9w=');
+
+  SRLBitmapsLoaded := True;
+  SetBitmapName(bmpMod,'SRL - Mod bitmap');
+  SetBitmapName(bmpAdmin,'SRL - Admin bitmap');
+  SetBitmapName(bmpMinimapMask, 'SRL - Minimap Mask bitmap');
+  SetDTMName(Lamp,'SRL - Lamp bitmap');
+  SetDTMName(BookOfKnowledge, 'SRL - Book of Knowledge');
+end;
+
+(*
+FreeSRLBitmaps
+~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    procedure FreeSRLBitMaps;
+
+Frees SRL Bitmaps from memory.
+
+.. note::
+
+    by Ron
+
+Example:
+
+.. code-block:: pascal
+
+*)
+procedure FreeSRLBitmaps;
+begin
+  if SRLBitmapsLoaded then
+  begin
+    FreeBitmap(bmpMod);
+    FreeBitmap(bmpAdmin);
+    FreeBitmap(bmpMinimapMask);
+    FreeDTM(Lamp);
+    FreeDTM(BookOfKnowledge);;
+    SRLBitmapsLoaded := False;
+  end;
+end;
+
+(*
+LoadSRLFonts
+~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    procedure LoadSRLFonts;
+
+Loads SRL Fonts into memory.
+
+.. note::
+
+    by Markus
+
+Example:
+
+.. code-block:: pascal
+
+*)
+procedure LoadSRLFonts;
+begin
+{$IFDEF LoadExtraFonts}
+  FriendChars := LoadChars2(FontPath + 'FriendChars/');
+  LoginChars := LoadChars2(FontPath +  'LoginChars/');
+{$ENDIF}
+end;
+
+(*
+FreeSRLFonts
+~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    procedure FreeSRLFonts;
+
+Frees SRL Fonts from memory.
+
+.. note::
+
+    by Markus
+
+Example:
+
+.. code-block:: pascal
+
+*)
+procedure FreeSRLFonts;
+begin
+{$IFDEF LoadExtraFonts}
+  FreeChars2(FriendChars);
+  FreeChars2(LoginChars);
+{$ENDIF}
+end;
+
+(*
+srl_Warn
+~~~~~~~~
+
+.. code-block:: pascal
+
+    procedure srl_Warn(ProcName, ErrorMessage: String; wVersion: Integer);
+
+WriteLn's a warning message.
+
+.. note::
+
+    by SRL Dev Team
+
+Example:
+
+.. code-block:: pascal
+
+    try
+      FindTree;
+    except
+      srl_Warn('FindTree', 'Through an error', warn_AllVersions);
+    end;
+
+*)
+procedure srl_Warn(ProcName, ErrorMessage: String; wVersion: Integer);
+begin
+  if (wVersion >= WarnSensitivity) then
+    if (wVersion <> warn_Debug) then
+      WriteLn('** Warning in ' + ProcName + ': ' + ErrorMessage + ' **')
+    else
+      WriteLn('Debugging ' + ProcName + ': ' + ErrorMessage);
+  if wVersion = warn_Terminate then
+    TerminateScript;
+end;
+
+{ MainScreen, Minimap, Inventory, Chat, Bank boxes as TBox }
+var
+  MSBox, MMBox, MIBox, MCBox, MBBox, MFBox: TBox;
+
+  (*
+SetupBoxes
+~~~~~~~~~~
+
+.. code-block:: pascal
+
+    Procedure SetupBoxes;
+
+Sets up Box variables
+
+.. note::
+
+    by SRL Dev Team & MylesMadness
+
+Example:
+
+.. code-block:: pascal
+
+*)
+Procedure SetupBoxes;
+begin
+  MSBox := IntToBox(MSX1, MSY1, MSX2, MSY2);
+  MMBox := IntToBox(MMX1, MMY1, MMX2, MMY2);
+  MIBox := IntToBox(MIX1, MIY1, MIX2, MIY2);
+  MCBox := IntToBox(MCX1, MCY1, MCX2, MCY2);
+  MBBox := IntToBox(MBX1, MBY1, MBX2, MBY2);
+  MFBox := IntToBox(224, 114, 294, 150);
+end;
+
+{ const HP_BAR constants;
+   Global contants storing width, height and tolerance for HP bars.
+   Used in srl_InFight. }
+const
+  HP_BAR_TOL = 3;
+  HP_BAR_WIDTH = 29;
+  HP_BAR_HEIGHT = 4;
+  HP_BAR_COLOR1 = 65280;//Green
+  HP_BAR_COLOR2 = 255;//Red
+
+(*
+GetFightBarTPA
+~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    Function GetFightBarTPA(SearchArea: TBox): TPointArray;
+
+Used in various fighting functions, including srl_InFight
+
+.. note::
+
+    by Narcle
+
+Example:
+
+.. code-block:: pascal
+
+
+*)
+Function GetFightBarTPA(SearchArea: TBox): TPointArray;
+var
+  T: TPoint;
+  H, I: integer;
+  Colors: TIntegerArray;
+  ATPA: T2DPointArray;
+begin
+  Colors := [HP_BAR_COLOR1, HP_BAR_COLOR2];
+  H := High(Colors);
+  SetArrayLength(ATPA, H+1);
+  T := point((MFBox.x2+MFBox.x1) div 2,(MFBox.y2+MFBox.y1) div 2);
+  for i := 0 to H do
+    with SearchArea do
+      FindColorsSpiralTolerance(T.x, T.y, ATPA[i], Colors[i], X1, Y1, X2, Y2, 2);
+  Result := MergeATPA(ATPA);
+end;
+
+(*
+srl_InFight
+~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function srl_InFight: Boolean;
+
+Checks whether player currently is in a fight, using mainscreen
+HP bar presence detection. Returns True if Player's HP bar is detected.
+Idea for improvement: Also check using PixelShift(); to see whether Player
+is performing fighting animations to further improve the certainty of results.
+
+.. note::
+
+    by Narcle
+
+Example:
+
+.. code-block:: pascal
+
+    while srl_InFight do
+    begin
+      CheckHP;
+      EatFood;
+    end;
+
+*)
+Function srl_InFight: Boolean;
+var box : TBox;                                //19200
+begin
+  box := IntToBox(233,147,267,179);
+  with box do
+  begin
+    Result := InRange(Length(GetFightBarTPA(MFBox)), 30, 240) OR (
+     (CountColorTolerance(192,x1,y1,x2,y2,0) > 50)
+     AND
+    (CountColorTolerance(65899,x1,y1,x2,y2,0) > 210));
+  end;
+end;
+
+(*
+srl_IsPoisoned
+~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function srl_IsPoisoned: Boolean;
+
+Checks whether player currently posioned based on the green splat.
+
+.. note::
+
+    by Slushpuppy
+
+Example:
+
+.. code-block:: pascal
+
+    if srl_IsPoisoned then
+    begin
+      DrinkAntiPoison
+    end;
+
+*)
+Function srl_IsPoisoned: Boolean;
+var
+  box: TBox;
+begin                                 //19200
+  box := IntToBox(233,147,267,179);
+  with box do
+    result := (CountColorTolerance(49152,x1,y1,x2,y2,59) > 30) and (CountColorTolerance(19200,x1,y1,x2,y2,59) > 150);
+end;
+
+procedure Proc_WorldSwitcherEnabled;
+begin
+  WorldSwitcherEnabled := WorldSwitcherEnabled;
+end;

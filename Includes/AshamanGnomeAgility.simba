@@ -1,0 +1,1427 @@
+Program AshamanGnomeAgility;
+  {$IFDEF RAYMONDPOWNS}{wrappers} function FloodFillTPAWrap(const TPA: TPointArray): T2DPointArray; var tempATPA: T2DPointArray; begin tempATPA:= FloodFillTPA(TPA); Result:= tempATPA; SetLength(tempATPA, 0); end; function FindTPAEdges(const p: TPointArray): TPointArray; begin FindTPAEdgesWrap(p, result); end; Function RotatePoints(Const P: TPointArray; A, cx, cy: Extended): TPointArray; begin RotatePointsWrap(P, A, cx, cy, result); end; function TPAFromCircle(const CX, CY, Radius: Integer): TPointArray; begin TPAFromCircleWrap(CX, CY, Radius, result); end; function TPAFromEllipse(const CX, CY, XRadius, YRadius : Integer): TPointArray; begin TPAFromEllipseWrap(CX, CY, XRadius, YRadius, result); end; function TPAFromBox(const Box : TBox) : TPointArray; begin TPAFromBoxWrap(Box, result); end; Function ReturnPointsNotInTPA(Const TotalTPA: TPointArray; const Box: TBox): TPointArray; begin ReturnPointsNotInTPAWrap(TotalTPA, Box, result); end; function CombineIntArray(const Ar1, Ar2: TIntegerArray): TIntegerArray; begin CombineIntArrayWrap(Ar1, Ar2, result); end; function ReArrangeandShortenArray(const a: TPointArray; Dist: Integer): TPointArray; begin ReArrangeandShortenArrayWrap(a, Dist, result); end; function ReArrangeandShortenArrayEx(const a: TPointArray; w, h: Integer): TPointArray; begin ReArrangeandShortenArrayExWrap(a, w, h, result); end; function CombineTPA(const Ar1, Ar2: TPointArray): TPointArray; begin CombineTPAWrap(Ar1, Ar2, Result); end; function RemoveDistTPointArray(x, y, dist: Integer;const ThePoints: TPointArray; RemoveHigher: Boolean): TPointArray; begin RemoveDistTPointArrayWrap(x, y, dist, ThePoints, RemoveHigher, Result); end; function TPAFromText(const text, font: String; var w,h: Integer): TPointArray; begin TPAFromTextWrap(text, font, w, h, result); end; function GetColors(const Coords: TPointArray): TIntegerArray; begin GetColorsWrap(Coords, Result); end; function Explode(del, str: string): TStringArray; begin ExplodeWrap(del, str, Result); end; function MergeATPA(const ATPA : T2DPointArray): TPointArray; begin MergeATPAWrap(ATPA, Result); end; function SplitTPA(arr : TPointArray; dist : Integer) : T2DPointArray; begin SplitTPAWrap(arr, dist, result); end; function SplitTPAEx(arr : TPointArray; w, h : integer) : T2DPointArray; begin SplitTPAExWrap(Arr, w, h, result); end; function ClearTPAFromTPA(arP, ClearPoints : TPointArray) : TPointArray; begin ClearTPAFromTPAWrap(arP, ClearPoints, result); end; function TPAToATPAEx(arP : TPointArray; w, h : integer) : T2DPointArray; begin TPAtoATPAExWrap(arP, w, h, result); end; function TPAToATPA(arP : TPointArray; dist : Integer) : T2DPointArray; begin TPAtoATPAWrap(arP, dist, result); end; function FindGapsTPA(TPA : TPointArray; MinPixels : integer) : T2DPointArray; begin FindGapsTPAWrap(tpa, MinPixels, result); end; {$ENDIF}
+  {$Define Smart}
+  {$I SRL-OSR/SRL.Simba}
+  {$I SRL-OSR/SRL/misc/SmartGraphics.Simba}
+  {$I SRL-OSR/SRL/misc/Debug.Simba}
+
+///////////////////////////////////////////////////////////////////////
+//                                                                   //
+//                  Begin of user setup                              //
+//                Fill in the fields below                           //
+//                                                                   //
+///////////////////////////////////////////////////////////////////////
+
+Const
+  HairColor = 11932589;  // ***What is your hair color? Or unique color on outfit***
+  HairTolerance = 70;    // ***Tolerance of your hair/outfit***
+  TestHair=False;        // ***If you want to test the count of hair colors you have, Result must be greater than 5***
+
+Procedure DeclarePlayers;
+Begin
+  HowManyPlayers := 1;
+  NumberOfPlayers(HowManyPlayers);
+  CurrentPlayer := 0;
+
+  Players[0].Name := '';          // ***Username***
+  Players[0].Pass := '';          // ***PW***
+  Players[0].WorldInfo  := [];    // ***Desired World, leave blank if random***
+  Players[0].Nick := '';          // ***Portion of display name, IMPORTANT FOR RANDOMS***
+  Players[0].Active := True;
+End;
+
+///////////////////////////////////////////////////////////////////////////////////////////
+//                                                                                       //
+//                            End of user setup                                          //
+//           Don't touch below this line unless you know what you're doing!!             //
+//                                                                                       //
+///////////////////////////////////////////////////////////////////////////////////////////
+
+Const
+  Debug=False;
+  POSDebug=False;
+  ScriptVersion = '1.1' ;
+  UseAutoChecker=True;
+
+Var
+  XP,XPH: Extended;
+  Timeout: Integer;
+
+Procedure ProgressReport;
+Begin
+  If Not Debug Then
+    ClearDebug;
+
+  XP := XP + 86.5;
+  XPH := Round(XP * (3600.0 / (GetTimeRunning / 1000.0)));
+
+  Writeln('=========AshamanGnomeAgility=========');
+  Writeln('============Version: 1.1=============');
+  Writeln('Time Running: ' + TimeRunning);
+  Writeln('Experience Earned: ' + ToStr(XP));
+  Writeln('Experience/Hour: ' + ToStr(XPH));
+  Writeln('=====================================');
+End;
+
+ {*******************************************************************************
+
+By: Shuttleu , edited
+
+*******************************************************************************}
+
+
+//Please note that almost all of this code was written by Harry, i just edited it a bit
+procedure AutoUpdateMe;
+var Neifile:integer;
+    OnlineVersion, NewScript, NeiFeilNennen:string;
+begin
+  if UseAutoChecker then
+  begin
+    writeln('Checking for script updates...');
+    OnlineVersion := GetPage('http://ashamangnomeagility.googlecode.com/git/Version.txt');
+    writeln(OnlineVersion);
+    writeln(ScriptVersion)
+    if (trim(OnlineVersion) > ScriptVersion) then
+    begin
+      writeLn('Newer script version online!');
+      writeLn('Autoupdating to newer version.');
+      NewScript := GetPage('http://ashamangnomeagility.googlecode.com/git/AshamanGnomeAgility.simba');
+
+      NeiFeilNennen := ScriptPath+ 'AshamanGnomeAgility V'+OnlineVersion+'.simba';
+      Neifile := Rewritefile(NeiFeilNennen, true);
+      try
+        WriteFileString(Neifile, NewScript);
+      except
+        begin
+          writeLn('Fatal error writing to '+NeiFeilNennen+'!!');
+          terminatescript;
+        end;
+      end;
+      CloseFile(Neifile);
+      writeLn('New script downloaded to '+NeiFeilNennen+'!! Please use this one!!');
+      TerminateScript;
+    end else
+      writeLn('You have the latest version of the script!');
+  end else
+    WriteLn('!!!!! Not checking for latest version, you may be outdated!');
+end;
+
+var
+  LogDTM,UpBranchDTM,RopeDTM,DownTreeDTM: Integer;
+
+Procedure SetDTM;
+Begin
+  LogDTM := DTMFromString('mrAAAAHic42BgYFBgZGD4DqQ7gfQNIO0BpB2AuBaIDwD5N4H4HRCzAfk8QPwQyP4IFfsGxGl2nAwRTpwMflacDHZ6DGA62J6ToSRWiyHIUYbhP1ANPx7MSADDAABaNRBv');
+  UpBranchDTM := DTMFromString('mlwAAAHicY2dgYOBiZGCwBtKHgfRkII4AsrcA6UAgXQnE0UAsAMSqQLEKIL0RiPcBsbeVEEOEECeDZPFhhoIoezA7JU+GIa9SjuE/UJ4fB2bEg6EAANSMDR0=');
+  RopeDTM := DTMFromString('m1gAAAHic42JgYAgF4mAg9mZkYJgIxI1AtiMQ5wJxOpBvAqQLgPgEEH8FYmcgngDElkBcD8SmQDXvgfQ9IFYB4sYMT4YIIU6G2FI5hsxaOYbwPBmGsi5lhvQiGYZcIAbJrVu0iEEOqJafCMxIJEYAAJFCE9w=');
+  DownTreeDTM := DTMFromString('mlwAAAHicY2dgYFgIxBuAOIaRgUEFiOuBeAGQbw6kK4G0KBAfBOILQHwXiLmA4slA2ttKiCG9SIYhQogTjrualBlyGxQZ5IDy/DgwIx4MBQDICww+');
+End;
+
+Procedure F33DTM;
+Begin
+  FreeDTM(LogDTM);
+  FreeDTM(UpBranchDTM);
+  FreeDTM(RopeDTM);
+  FreeDTM(DownTreeDTM);
+End;
+
+function WaitFindDTMRotatedEx(DTM: integer; var x, y: integer; xs, ys, xe, ye, WaitPerLoop, MaxTime: integer): boolean;
+var
+  t: integer;
+  afound: extended;
+begin
+  t := (getSystemTime + MaxTime);
+
+  while (getSystemTime < t) do
+  begin
+    if (findDTMrotated(DTM, x, y, xs, ys, xe, ye,-Pi,Pi,Pi/30,aFound)) then
+    begin
+      result := true;
+      break;
+    end;
+
+    wait(WaitPerLoop);
+  end;
+end;
+
+Function StartPresent:Boolean;
+Var
+  CTS: Integer;
+  TPA: TPointArray;
+  ATPA: T2DPointArray;
+  LogBox: TBox;
+Begin
+
+  If Not LoggedIn Then
+    Exit;
+
+  FindColorsSpiralTolerance(MSCX, MSCY, TPA, 0, MMX1, MMY1, MMX2, MMY2, 2);
+  ColorToleranceSpeed(CTS);
+  SetColorSpeed2Modifiers(0.2, 0.2);
+
+  ATPA:=SplitTPA(TPA,3);
+  SortATPASize(ATPA,True);
+
+  If (Length(ATPA) = 0) Then
+  Begin
+    If POSDebug Then
+      Writeln('No Start Colors Found');
+    Exit;
+  End;
+
+  If POSDebug Then
+    DebugATPABounds(ATPA);
+
+  LogBox:= GetTPABounds(ATPA[0]);
+  If POSDebug Then
+    Writeln('Length of possible Start Point: '+tostr(Length(ATPA[0])));
+
+  If Length(ATPA[0]) < 20 then
+    Exit;
+
+  Result:=True;
+End;
+
+Procedure Failsafe;
+Begin
+  MouseBox(258,155,273,167,Mouse_Left);
+  Wait(RandomRange(1000,1400));
+End;
+
+Function WalkToStart:Boolean;
+Var
+  CTS,H,I,T: Integer;
+  TPA,TPA2: TPointArray;
+  ATPA,ATPA2: T2DPointArray;
+  LogBox,LogBox2: TBox;
+Begin
+
+  If Not LoggedIn Then
+    Exit;
+
+  FindNormalRandoms;
+
+  If Debug Then
+    Writeln('Entering Walk to Start');
+  MakeCompass('N');
+
+  CTS:= GetColorToleranceSpeed;
+  ColorToleranceSpeed(2);
+
+  SetColorSpeed2Modifiers(0.31, 1.16);
+  FindColorsSpiralTolerance(MSCX, MSCY, TPA, 1785167, MMX1, MMY1, MMX2, MMY2, 12);
+  ColorToleranceSpeed(CTS);
+  SetColorSpeed2Modifiers(0.2, 0.2);
+
+  ATPA:=SplitTPA(TPA,10);
+  SortATPASize(ATPA,True);
+
+
+  If (Length(ATPA) = 0) Then
+  Begin
+    If Debug Then
+      Writeln('No Brown MM Colors Found');
+    Exit;
+  End;
+
+  H:=High(ATPA);
+
+  For I:=0 To H Do
+  Begin
+    LogBox:= GetTPABounds(ATPA[I]);
+    FindColorsSpiralTolerance(MSCX, MSCY, TPA2, 0, LogBox.X1-3, LogBox.Y1-3, LogBox.X2+3, LogBox.Y2+3, 2);
+    ColorToleranceSpeed(CTS);
+    SetColorSpeed2Modifiers(0.2, 0.2);
+
+    If Debug Then
+      Writeln('Length of possible TPA Start Point: '+tostr(Length(TPA2)));
+
+    If Length(TPA2) < 50 then
+      Continue;
+
+    SplitTPAExWrap(TPA2,1,3,ATPA2);
+    SortATPASize(ATPA2,True);
+
+    If Debug Then
+      DebugATPABounds(ATPA2);
+
+    LogBox2:= GetTPABounds(ATPA2[0]);
+    If Debug Then
+      Writeln('Length of possible Start Point: '+tostr(Length(ATPA2[0])));
+
+
+    MMouse(LogBox2.X1+3,LogBox2.Y1-2,2,2);
+    ClickMouse2(True);
+    Wait(Random(600));
+    Case Random(10) Of
+      0:RunEnergy(50);
+    End;
+    Wait(RandomRange(800,1200));
+    MarkTime(T);
+    While IsMoving Do
+    Begin
+      If TimeFromMark(T)>8000 Then
+        Break;
+      If FindNormalRandoms Then
+        Exit;
+      Wait(Random(500));
+    End;
+    Result:=True;
+    MarkTime(Timeout);
+    Break;
+  End;
+End;
+
+Function BrownMM(SX,SY,MX,MY:Integer): Boolean;
+Var
+  CTS: Integer;
+  TPA: TPointArray;
+  ATPA: T2DPointArray;
+Begin
+  CTS:= GetColorToleranceSpeed;
+  ColorToleranceSpeed(2);
+
+  SetColorSpeed2Modifiers(0.31, 1.16);
+  FindColorsSpiralTolerance(MSCX, MSCY, TPA, 1785167, SX, SY, MX, MY, 12);
+  ColorToleranceSpeed(CTS);
+  SetColorSpeed2Modifiers(0.2, 0.2);
+
+  ATPA:=SplitTPA(TPA,10);
+  SortATPASize(ATPA,True);
+
+  If (Length(ATPA) = 0) Then
+  Begin
+    If POSDebug Then
+      Writeln('No Brown MM Colors Found');
+    Exit;
+  End;
+
+  Result:= Length(ATPA[0])>40;
+  If POSDebug Then
+    Writeln('Brown Length: '+ToStr(Length(ATPA[0])));
+End;
+
+Function CompassCheck(Direction: Variant): Boolean;
+var
+  StartAngle, DirectionDeg: Extended;
+begin
+  Result := False;
+  StartAngle := (rs_GetCompassAngleDegrees);
+  if ((StartAngle < 0) or (not LoggedIn)) then Exit;
+
+  // convert from variant to direction:
+  DirectionDeg := variantToDirection(Direction);
+
+  if (__MakeCompass_MinCheck(StartAngle, DirectionDeg) <= 8.0) then
+  begin
+    Result := True;
+  end;
+End;
+
+Function WhereAmI(MoveCompass: Boolean): Integer;
+Var
+  X,Y: Integer;
+Begin
+  FindNormalRandoms;
+
+  If PercentBlackMM>50 Then
+    If CountDots('Yellow')>1 Then
+      Result:= 2 Else
+      Begin
+        MakeCompass('S');
+        If CountColorTolerance(15921903,MMX1,38,600,118,30)>0 Then
+          Result:= 3 Else
+          Result:= 4;
+      End;
+
+  If MoveCompass Then
+    MakeCompass('N');
+
+  If CompassCheck('N') Then
+  Begin
+    If ((FindSymbol(X,Y,'rare trees')) Or (FindSymbol(X,Y,'spinning wheel'))) And (BrownMM(579,54,605,79)) And (BrownMM(MMX1,MMY1,614,48)) And (BrownMM(631,16,658,49)) Then
+    Begin
+      If POSDebug Then
+        Writeln(CountColorTolerance(10843745,687,31,MMX2,80,30));
+      Result:= 5;
+    End;
+  End Else
+    If POSDebug Then
+      Writeln('Compass not north');
+
+
+  If CompassCheck('N') Then
+    If Result=0 Then
+      If (Not FindSymbol(X,Y,'arrow')) And (StartPresent) And (BrownMM(620,43,665,72)) And (BrownMM(MMX1,49,627,85)) And (BrownMM(MMX1,70,629,122)) Then
+      Begin
+        Result:=6;
+      End;
+  If CompassCheck('N') Then
+    If Result=0 Then
+      If (StartPresent) And (BrownMM(585,78,613,116)) And (BrownMM(620,92,658,110)) Then
+      Begin
+        If POSDebug Then
+          Writeln(CountColorTolerance(2708908,191,0,433,46,30));
+        Result:=7;
+      End;
+
+  If MoveCompass Then
+    MakeCompass('S');
+
+  If CompassCheck('S') Then
+  Begin
+    If Result=0 Then
+      If (BrownMM(634,96,654,107)) And (BrownMM(633,49,659,72)) Then
+      Begin
+        Result:=1;
+      End;
+  End Else
+    If POSDebug Then
+      Writeln('Compass not south');
+
+End;
+
+Function LogBounds:TBox;
+Var
+  CTS,T: Integer;
+  TPA: TPointArray;
+  ATPA: T2DPointArray;
+Begin
+  MarkTime(T);
+  CTS:= GetColorToleranceSpeed;
+  ColorToleranceSpeed(2);
+
+  SetColorSpeed2Modifiers(0.08, 0.42);
+  FindColorsSpiralTolerance(MSCX, MSCY, TPA, 1852246, MSX1, MSY1, MSX2, MSY2, 9);
+  ColorToleranceSpeed(CTS);
+  SetColorSpeed2Modifiers(0.2, 0.2);
+
+  SplitTPAExWrap(TPA,15,15,ATPA);
+  SortATPASize(ATPA,True);
+
+  If (Length(ATPA) = 0) Then
+  Begin
+    If Debug Then
+      Writeln('No Log Colors Found');
+    Exit;
+  End;
+
+  If Debug Then
+    DebugATPABounds(ATPA);
+  Result:=GetTPABounds(ATPA[0]);
+End;
+
+
+Function CrossLog:Boolean;
+Var
+  H,I,CTS,X,Y,T: Integer;
+  TPA: TPointArray;
+  LogBox: TBox;
+Begin
+
+  If Not LoggedIn Then
+    Exit;
+
+  FindNormalRandoms;
+
+  If Debug Then
+    Writeln('Entering CrossLog');
+
+  MakeCompass('N');
+
+  LogBox:=LogBounds;
+
+  CTS:= GetColorToleranceSpeed;
+  ColorToleranceSpeed(2);
+
+  SetColorSpeed2Modifiers(0.09, 2.07);
+  FindColorsSpiralTolerance(MSCX, MSCY, TPA, 274771, LogBox.X1-3, LogBox.Y1-3, LogBox.X2+3, LogBox.Y2+3, 6);
+  ColorToleranceSpeed(CTS);
+  SetColorSpeed2Modifiers(0.2, 0.2);
+
+  SortTPAByY(TPA,True);
+
+  If (Length(TPA) = 0) Then
+  Begin
+    If Debug Then
+      Writeln('No Log Colors Found');
+    Exit;
+  End;
+
+  H := High(TPA);
+
+  For I := 0 To Min(H,5) Do
+  Begin
+    MMouse(TPA[I].X,TPA[I].Y,3,3);
+
+    If WaitUpTextMulti(['Log','lance','balan','alan'],RandomRange(200,300)) Then
+    Begin
+      If Debug Then
+        Writeln('Found Log Uptext');
+      ClickMouse2(True);
+      If Not DidYellowClick Then
+      Begin
+        If Debug Then
+          Writeln('No Click Yellow');
+        MakeCompass('S');
+        MouseBox(237,10,268,33,Mouse_Move);
+        MarkTime(T);
+        Repeat
+          If FindNormalRandoms Then
+            Exit;
+          Wait(100);
+          If TimeFromMark(T)>10000 Then
+            Break;
+          If ClickToContinue Then
+            Break;
+        Until (FindBlackChatMessage('..P')) Or (FindBlackChatMessage('...Y')) Or (FindBlackChatMessage('..Y'));
+        If Debug Then
+          Writeln(GetBlackChatMessage);
+        Result:=True;
+        SetLength(TPA,0);
+        MarkTime(Timeout);
+        Exit;
+      End Else
+        Failsafe;
+    End;
+  End;
+
+  SetLength(TPA,0);
+
+  If WaitFindDTMRotatedEx(LogDTM,X,Y,MSX1,MSY1,MSX2,MSY2,100,RandomRange(1220,900)) Then
+  Begin
+    If Debug Then
+      Writeln('Found LogDTM');
+    MMouse(X,Y,2,2);
+    If WaitUpTextMulti(['Log','lance','balan','alan'],RandomRange(200,300)) Then
+    Begin
+      If Debug Then
+        Writeln('Found Log Uptext');
+      ClickMouse2(True);
+      If Not DidYellowClick Then
+      Begin
+        If Debug Then
+          Writeln('No Click Yellow');
+        MakeCompass('S');
+        MouseBox(237,10,268,33,Mouse_Move);
+        MarkTime(T);
+        Repeat
+          If FindNormalRandoms Then
+            Exit;
+          Wait(100);
+          If TimeFromMark(T)>10000 Then
+            Break;
+          If ClickToContinue Then
+            Break;
+        Until (FindBlackChatMessage('..P')) Or (FindBlackChatMessage('...Y')) Or (FindBlackChatMessage('..Y'));
+        If Debug Then
+          Writeln(GetBlackChatMessage);
+        Result:=True;
+        MarkTime(Timeout);
+        Exit;
+      End Else
+        Failsafe;
+    End;
+  End Else
+    If Debug Then
+      Writeln('DTM Crosslog Failed');
+End;
+
+Function ClimbNet:Boolean;
+Var
+  H,I,CTS,X,Y,T: Integer;
+  TPA: TPointArray;
+  ATPA: T2DPointArray;
+Begin
+
+  If Not LoggedIn Then
+    Exit;
+
+  MakeCompass('S');
+
+  FindNormalRandoms;
+
+  CTS:= GetColorToleranceSpeed;
+  ColorToleranceSpeed(2);
+
+  SetColorSpeed2Modifiers(8.34, 13.89);
+  FindColorsSpiralTolerance(MSCX, MSCY, TPA, 197637, MSX1, MSY1, MSX2, MSY2, 2);
+  ColorToleranceSpeed(CTS);
+  SetColorSpeed2Modifiers(0.2, 0.2);
+
+  ATPA:=SplitTPA(TPA,20);
+  SortATPASize(ATPA,True);
+
+  If (Length(ATPA) = 0) Then
+  Begin
+    If Debug Then
+      Writeln('No Net Colors Found');
+    Exit;
+  End;
+
+  If Debug Then
+    DebugATPABounds(ATPA);
+
+  H := High(ATPA);
+
+  For I := 0 To H Do
+  Begin
+    MiddleTPAEx(ATPA[I],X,Y);
+
+    If Debug Then
+      Writeln('Length of possible ClimbNet: '+tostr(Length(ATPA[I])));
+
+    If Length(ATPA[I]) < 100 then
+      Continue;
+
+    MMouse(X,Y,10,10);
+    If WaitUpTextMulti(['Climb','imb-','stacle','acle'],RandomRange(200,300)) Then
+    Begin
+      ClickMouse2(True);
+      If Not DidYellowClick Then
+      Begin
+        Result:=True;
+        MarkTime(T);
+        MouseBox(258,96,267,116,Mouse_Move);
+        Repeat
+          If FindNormalRandoms Then
+            Exit;
+          Wait(100);
+          If TimeFromMark(T)>10000 Then
+            Exit;
+        Until PercentBlackMM>50;
+        Wait(RandomRange(300,400));
+        MarkTime(Timeout);
+        SetLength(TPA,0);
+        SetLength(ATPA,0);
+        Exit;
+      End Else
+        Failsafe;
+    End;
+  End;
+
+End;
+
+Function BranchBounds:TBox;
+Var
+  CTS: Integer;
+  TPA: TPointArray;
+  ATPA: T2DPointArray;
+Begin
+  CTS:= GetColorToleranceSpeed;
+  ColorToleranceSpeed(2);
+
+  SetColorSpeed2Modifiers(0.40, 0.70);
+  FindColorsSpiralTolerance(MSCX, MSCY, TPA, 2374223, MSX1, MSY1, MSX2, MSY2, 4);
+  ColorToleranceSpeed(CTS);
+  SetColorSpeed2Modifiers(0.2, 0.2);
+
+  ATPA:=SplitTPA(TPA,15);
+  SortATPASize(ATPA,True);
+  If Length(ATPA)=0 Then
+  Begin
+    If Debug Then
+      Writeln('No Branch ground colors found');
+    Exit;
+  End;
+  Result:=GetTPABounds(ATPA[0]);
+  SetLength(TPA,0);
+  SetLength(ATPA,0);
+End;
+
+Function ClimbBranch:Boolean;
+Var
+  H,I,CTS,X,Y,T: Integer;
+  TPA: TPointArray;
+  ATPA: T2DPointArray;
+  SearchBox: TBox;
+Begin
+
+  If Not LoggedIn Then
+    Exit;
+
+  FindNormalRandoms;
+
+  MakeCompass('S');
+
+  SearchBox:=BranchBounds;
+
+  CTS:= GetColorToleranceSpeed;
+  ColorToleranceSpeed(2);
+
+  SetColorSpeed2Modifiers(0.06, 1.57);
+  FindColorsSpiralTolerance(MSCX, MSCY, TPA, 3041669, SearchBox.X1, SearchBox.Y1-2, SearchBox.X2, SearchBox.Y2-10, 8);
+  ColorToleranceSpeed(CTS);
+  SetColorSpeed2Modifiers(0.2, 0.2);
+
+  ATPA:=SplitTPA(TPA,5);
+  SortATPAFrom(ATPA,Point(266,191));
+
+  If (Length(ATPA) = 0) Then
+  Begin
+    If Debug Then
+      Writeln('No Climb Branch Colors Found');
+    Exit;
+  End;
+
+  If Debug Then
+    DebugATPABounds(ATPA);
+
+  H := High(ATPA);
+
+  For I := 0 To H Do
+  Begin
+    MiddleTPAEx(ATPA[I],X,Y);
+
+    If Debug Then
+      Writeln('Length of possible Branch: '+tostr(Length(ATPA[I])));
+
+    MMouse(X,Y,2,2);
+    If WaitUpTextMulti(['Climb','imb-','branch','anch'],RandomRange(200,300)) Then
+    Begin
+      If Debug Then
+        Writeln('Found Branch Uptext');
+      ClickMouse2(False);
+      If WaitOptionMulti(['Climb','imb-','branch','anch'],RandomRange(800,900)) Then
+      Begin
+        Result:=True;
+        MarkTime(T);
+        MouseBox(94,170,101,172,Mouse_Move);
+        Repeat
+          If FindNormalRandoms Then
+            Exit;
+          Wait(100);
+          If TimeFromMark(T)>5000 Then
+            Exit;
+          If ClickToContinue Then
+            Break;
+        Until (FindBlackChatMessage('..P')) Or (FindBlackChatMessage('...T')) Or (FindBlackChatMessage('..T'));
+        MarkTime(T);
+        Repeat
+          If FindNormalRandoms Then
+            Exit;
+          Wait(100);
+          If TimeFromMark(T)>5000 Then
+            Exit;
+        Until WhereAmI(False)=3;
+        Wait(RandomRange(1000,1300));
+        SetLength(TPA,0);
+        SetLength(ATPA,0);
+        MarkTime(Timeout);
+        Exit;
+      End;
+    End;
+  End;
+
+  SetLength(TPA,0);
+  SetLength(ATPA,0);
+
+  If WaitFindDTMRotatedEx(UpBranchDTM,X,Y,MSX1,MSY1,MSX2,MSY2,100,1200) Then
+  Begin
+    MMouse(X,Y,2,2);
+    If WaitUpTextMulti(['Climb','imb-','branch','anch'],RandomRange(200,300)) Then
+    Begin
+      If Debug Then
+        Writeln('Found Branch Uptext');
+      ClickMouse2(False);
+      If WaitOptionMulti(['Climb','imb-','branch','anch'],RandomRange(800,900)) Then
+      Begin
+        Result:=True;
+        MarkTime(T);
+        MouseBox(94,170,101,172,Mouse_Move);
+        Repeat
+          If FindNormalRandoms Then
+            Exit;
+          Wait(100);
+          If TimeFromMark(T)>5000 Then
+            Exit;
+        Until (FindBlackChatMessage('..P')) Or (FindBlackChatMessage('...T')) Or (FindBlackChatMessage('..T'));
+        MarkTime(T);
+        Repeat
+          If FindNormalRandoms Then
+            Exit;
+          Wait(100);
+          If TimeFromMark(T)>5000 Then
+            Exit;
+        Until WhereAmI(False)=3;
+        Wait(RandomRange(1000,1300));
+        MarkTime(Timeout);
+        Exit;
+      End;
+    End;
+  End Else
+    If Debug Then
+      Writeln('DTM Failed');
+
+End;
+
+Function BalanceBounds:TBox;
+Var
+  TPA: TPointArray;
+  ATPA: T2DPointArray;
+Begin
+  FindColorsSpiralTolerance(MSCX, MSCY, TPA, 528468, MSX1, MSY1, MSX2, MSY2, 9);
+
+  SplitTPAExWrap(TPA,70,30,ATPA);
+  SortATPASize(ATPA,True);
+
+  If (Length(ATPA) = 0) Then
+  Begin
+    If Debug Then
+      Writeln('No Log Colors Found');
+    Exit;
+  End;
+
+  If Debug Then
+    DebugATPABounds(ATPA);
+  Result:=GetTPABounds(ATPA[0]);
+End;
+
+Function BalanceRope:Boolean;
+Var
+  X,Y,H,I,CTS,T: Integer;
+  TPA: TPointArray;
+  BalanceBox: TBox;
+Begin
+
+  If Not LoggedIn Then
+    Exit;
+
+  FindNormalRandoms;
+
+  MakeCompass('S');
+
+  BalanceBox:=BalanceBounds;
+
+  CTS:= GetColorToleranceSpeed;
+  ColorToleranceSpeed(2);
+
+  SetColorSpeed2Modifiers(0.03, 0.09);
+  FindColorsSpiralTolerance(MSCX, MSCY, TPA, 4876932, BalanceBox.X1, BalanceBox.Y1-20, BalanceBox.X2+20, BalanceBox.Y2+3, 11);
+  If Debug Then
+    Smart_DrawBox(IntToBox(BalanceBox.X1, BalanceBox.Y1-20, BalanceBox.X2+20, BalanceBox.Y2+3));
+
+  ColorToleranceSpeed(CTS);
+  SetColorSpeed2Modifiers(0.2, 0.2);
+
+  SortTPAByX(TPA,False);
+
+  If (Length(TPA) = 0) Then
+  Begin
+    If Debug Then
+      Writeln('No Log Colors Found');
+    Exit;
+  End;
+
+  H := High(TPA);
+
+  For I := 0 To Min(H,10) Do
+  Begin
+    MMouse(TPA[I].X,TPA[I].Y,3,3);
+    If WaitUpTextMulti(['rope','cing','Balancing','anci'],RandomRange(200,300)) Then
+    Begin
+      If Debug Then
+        Writeln('Found Rope Uptext');
+      ClickMouse2(False);
+      If WaitOptionMulti(['Balancing','anci','alanc'],RandomRange(800,900)) Then
+      Begin
+        If Debug Then
+          Writeln('Found Balance Option');
+        If Not DidYellowClick Then
+        Begin
+          MarkTime(T);
+          MouseBox(132,117,156,131,Mouse_Move);
+          Repeat
+            If FindNormalRandoms Then
+              Exit;
+            Wait(100);
+            If TimeFromMark(T)>5000 Then
+            Begin
+              If Debug Then
+                Writeln('Took too long for message to appear');
+              Exit;
+            End;
+            ClickToContinue;
+          Until (FindBlackChatMessage('care')) Or (FindBlackChatMessage('crose'));
+          If Debug Then
+            Writeln('Found Message: '+GetBlackChatMessage);
+          Wait(RandomRange(1500,2000));
+          MarkTime(T);
+          Repeat
+            If FindNormalRandoms Then
+              Exit;
+            Wait(100);
+            If TimeFromMark(T)>5000 Then
+            Begin
+              If Debug Then
+                Writeln('Took too long for colors to disappear');
+              Break;
+            End;
+            ClickToContinue;
+            If Debug Then
+            Begin
+              Writeln('Brown Color Count: '+ToStr(CountColorTolerance(1258308,238,174,262,188,30)));
+              Writeln('Green Color Count: '+ToStr(CountColorTolerance(1997159,238,174,262,188,40)));
+            End;
+          Until (CountColorTolerance(1258308,238,174,262,188,30)>150);
+          If Debug Then
+          Begin
+            Writeln('Final Brown Color Count: '+ToStr(CountColorTolerance(1258308,238,174,262,188,30)));
+            Writeln('Final Green Color Count: '+ToStr(CountColorTolerance(1997159,238,174,262,188,40)));
+          End;
+          Wait(Random(200));
+          Result:=True;
+          MarkTime(Timeout);
+          Exit;
+        End Else
+          Failsafe;
+      End;
+    End;
+  End;
+
+  SetLength(TPA,0);
+
+
+  CTS:= GetColorToleranceSpeed;
+  ColorToleranceSpeed(2);
+
+  SetColorSpeed2Modifiers(0.05, 0.08);
+  FindColorsSpiralTolerance(17, 178, TPA, 5008518, 0, 134, 122, 216, 6);
+  ColorToleranceSpeed(CTS);
+  SetColorSpeed2Modifiers(0.2, 0.2);
+
+  SortTPAByX(TPA,False);
+
+  If (Length(TPA) = 0) Then
+  Begin
+    If Debug Then
+      Writeln('No Balance Rope Colors Found');
+    Exit;
+  End;
+
+  H := High(TPA);
+
+  For I := 0 To Min(H,5) Do
+  Begin
+    MMouse(TPA[I].X,TPA[I].Y,2,1);
+    If WaitUpTextMulti(['rope','cing','Balancing','anci'],RandomRange(200,300)) Then
+    Begin
+      If Debug Then
+        Writeln('Found Rope Uptext');
+      ClickMouse2(False);
+      If WaitOptionMulti(['Balancing','anci','alanc'],RandomRange(800,900)) Then
+      Begin
+        If Debug Then
+          Writeln('Found Balance Option');
+        If Not DidYellowClick Then
+        Begin
+          MarkTime(T);
+          MouseBox(132,117,156,131,Mouse_Move);
+          Repeat
+            If FindNormalRandoms Then
+              Exit;
+            Wait(100);
+            If TimeFromMark(T)>5000 Then
+            Begin
+              If Debug Then
+                Writeln('Took too long for message to appear');
+              Exit;
+            End;
+            ClickToContinue;
+          Until (FindBlackChatMessage('care')) Or (FindBlackChatMessage('crose'));
+          If Debug Then
+            Writeln('Found Message: '+GetBlackChatMessage);
+          Wait(RandomRange(1500,2000));
+          MarkTime(T);
+          Repeat
+            If FindNormalRandoms Then
+              Exit;
+            Wait(100);
+            If TimeFromMark(T)>5000 Then
+            Begin
+              If Debug Then
+                Writeln('Took too long for colors to disappear');
+              Break;
+            End;
+            ClickToContinue;
+            If Debug Then
+            Begin
+              Writeln('Brown Color Count: '+ToStr(CountColorTolerance(1258308,238,174,262,188,30)));
+              Writeln('Green Color Count: '+ToStr(CountColorTolerance(1997159,238,174,262,188,40)));
+            End;
+          Until (CountColorTolerance(1258308,238,174,262,188,30)>150);
+          If Debug Then
+          Begin
+            Writeln('Final Brown Color Count: '+ToStr(CountColorTolerance(1258308,238,174,262,188,30)));
+            Writeln('Final Green Color Count: '+ToStr(CountColorTolerance(1997159,238,174,262,188,40)));
+          End;
+          Wait(Random(200));
+          Result:=True;
+          MarkTime(Timeout);
+          Exit;
+        End Else
+          Failsafe;
+      End;
+    End;
+  End;
+
+  If WaitFindDTMRotatedEx(RopeDTM,X,Y,MSX1,MSY1,MSX2,MSY2,100,1200) Then
+  Begin
+    If Debug Then
+      Writeln('Found RopeDTM');
+    MMouse(X,Y,2,1);
+    If WaitUpTextMulti(['rope','cing','Balancing','anci'],RandomRange(200,300)) Then
+    Begin
+      If Debug Then
+        Writeln('Found Rope Uptext');
+      ClickMouse2(False);
+      If WaitOptionMulti(['Balancing','anci','alanc'],RandomRange(800,900)) Then
+      Begin
+        If Debug Then
+          Writeln('Found Balance Option');
+        If Not DidYellowClick Then
+        Begin
+          MouseBox(132,117,156,131,Mouse_Move);
+          MarkTime(T);
+          Repeat
+            If FindNormalRandoms Then
+              Exit;
+            Wait(100);
+            If TimeFromMark(T)>5000 Then
+            Begin
+              If Debug Then
+                Writeln('Took too long for message to appear');
+              Exit;
+            End;
+            ClickToContinue;
+          Until (FindBlackChatMessage('care')) Or (FindBlackChatMessage('crose'));
+          If Debug Then
+            Writeln('Found Message: '+GetBlackChatMessage);
+          Wait(RandomRange(1500,2000));
+          MarkTime(T);
+          Repeat
+            If FindNormalRandoms Then
+              Exit;
+            Wait(100);
+            If TimeFromMark(T)>5000 Then
+            Begin
+              If Debug Then
+                Writeln('Took too long for colors to disappear');
+              Break;
+            End;
+            ClickToContinue;
+            If Debug Then
+            Begin
+              Writeln('Brown Color Count: '+ToStr(CountColorTolerance(1258308,238,174,262,188,30)));
+              Writeln('Green Color Count: '+ToStr(CountColorTolerance(1997159,238,174,262,188,40)));
+            End;
+          Until (CountColorTolerance(1258308,238,174,262,188,30)>150);
+          If Debug Then
+          Begin
+            Writeln('Final Brown Color Count: '+ToStr(CountColorTolerance(1258308,238,174,262,188,30)));
+            Writeln('Final Green Color Count: '+ToStr(CountColorTolerance(1997159,238,174,262,188,40)));
+          End;
+          Wait(Random(200));
+          Result:=True;
+          MarkTime(Timeout);
+          Exit;
+        End Else
+          Failsafe;
+      End;
+    End;
+  End;
+End;
+
+Function DownTree:Boolean;
+Var
+  H,I,CTS,X,Y,T: Integer;
+  TPA: TPointArray;
+  ATPA: T2DPointArray;
+Begin
+
+  If Not LoggedIn Then
+    Exit;
+
+  FindNormalRandoms;
+
+  MakeCompass('S');
+
+  If IsUpTextMultiCustom(['Climb','imb-','branch','anch']) Then
+  Begin
+    ClickMouse2(True);
+    If Not DidYellowClick Then
+    Begin
+      Result:=True;
+      MakeCompass('N');
+      SetAngle(SRL_ANGLE_LOW);
+
+      MarkTime(T);
+      Repeat
+        If FindNormalRandoms Then
+          Exit;
+        Wait(100);
+        If TimeFromMark(T)>5000 Then
+          Exit;
+      Until PercentBlackMM<50;
+      MarkTime(Timeout);
+      Exit;
+    End Else
+      Failsafe;
+  End;
+
+  CTS:= GetColorToleranceSpeed;
+  ColorToleranceSpeed(2);
+
+  SetColorSpeed2Modifiers(0.07, 5.81);
+  FindColorsSpiralTolerance(MSCX, MSCY, TPA, 204072, 29, 115, 253, 225, 3);
+  ColorToleranceSpeed(CTS);
+  SetColorSpeed2Modifiers(0.2, 0.2);
+
+  ATPA:=SplitTPA(TPA,5);
+  SortATPASize(ATPA,False);
+
+  If (Length(ATPA) = 0) Then
+  Begin
+    If Debug Then
+      Writeln('No Down Tree Colors Found');
+    Exit;
+  End;
+
+  If Debug Then
+    DebugATPABounds(ATPA);
+
+  H := High(ATPA);
+
+  For I := 0 To Min(30,H) Do
+  Begin
+    MiddleTPAEx(ATPA[I],X,Y);
+
+    If Debug Then
+      Writeln('Length of possible Tree: '+ tostr(I)+ '  '+tostr(Length(ATPA[I])));
+
+    If (Length(ATPA[I]) < 100) Or (Length(ATPA[I]) > 300) then
+      Continue;
+
+    MMouse(X+4,Y,2,2);
+    If WaitUpTextMulti(['Climb','imb-','branch','anch'],RandomRange(200,300)) Then
+    Begin
+      ClickMouse2(True);
+      If Not DidYellowClick Then
+      Begin
+        Result:=True;
+        MakeCompass('N');
+        SetAngle(SRL_ANGLE_LOW);
+        MarkTime(T);
+        Repeat
+          If FindNormalRandoms Then
+            Exit;
+          Wait(100);
+          If TimeFromMark(T)>5000 Then
+            Exit;
+        Until PercentBlackMM<50;
+        MarkTime(Timeout);
+        Exit;
+      End Else
+        Failsafe;
+    End;
+  End;
+
+  If WaitFindDTMRotatedEx(DownTreeDTM,X,Y,MSX1,MSY1,MSX2,MSY2,100,3000) Then
+  Begin
+    MMouse(X,Y,2,2);
+    If WaitUpTextMulti(['Climb','imb-','branch','anch'],RandomRange(200,300)) Then
+    Begin
+      ClickMouse2(True);
+      If Not DidYellowClick Then
+      Begin
+        Result:=True;
+        MakeCompass('N');
+        SetAngle(SRL_ANGLE_LOW);
+        MarkTime(T);
+        Repeat
+          If FindNormalRandoms Then
+            Exit;
+          Wait(100);
+          If TimeFromMark(T)>5000 Then
+          Begin
+            Writeln('Took to long for Black to go away, exiting');
+            SetAngle(SRL_ANGLE_HIGH);
+            MakeCompass('S');
+            Exit;
+          End;
+        Until PercentBlackMM<50;
+        MarkTime(Timeout);
+        Exit;
+      End Else
+        Failsafe;
+    End;
+  End Else
+    If Debug Then
+      Writeln('DownTreeDTM Failed, TPA Backup');
+End;
+
+Function ClimbNet2:Boolean;
+Var
+  H,I,CTS,X,Y,T: Integer;
+  TPA: TPointArray;
+  ATPA: T2DPointArray;
+Begin
+
+  If Not LoggedIn Then
+    Exit;
+
+  FindNormalRandoms;
+
+  MakeCompass('N');
+
+  CTS:= GetColorToleranceSpeed;
+  ColorToleranceSpeed(2);
+
+  SetColorSpeed2Modifiers(0.09, 1.31);
+  FindColorsSpiralTolerance(MSCX, MSCY, TPA, 3560304, MSX1, MSY1, MSX2, MSY2, 10);
+  ColorToleranceSpeed(CTS);
+  SetColorSpeed2Modifiers(0.2, 0.2);
+
+  ATPA:=SplitTPA(TPA,10);
+  SortATPASize(ATPA,True);
+
+  If (Length(ATPA) = 0) Then
+  Begin
+    If Debug Then
+      Writeln('No ClimbNet2 Colors Found');
+    Exit;
+  End;
+
+  If Debug Then
+    DebugATPABounds(ATPA);
+
+  H := High(ATPA);
+
+  For I := 0 To H Do
+  Begin
+    MiddleTPAEx(ATPA[I],X,Y);
+
+    If Debug Then
+      Writeln('Length of possible ClimbNet2: '+tostr(Length(ATPA[I])));
+
+    If Length(ATPA[I]) < 20 then
+      Continue;
+
+    MMouse(X,Y,10,10);
+    If WaitUpTextMulti(['Climb','imb-','stacle','acle'],RandomRange(200,300)) Then
+    Begin
+      If Debug Then
+        Writeln('Found TPA Net2');
+      ClickMouse2(True);
+      If Not DidYellowClick Then
+      Begin
+        Result:=True;
+        SetAngle(SRL_ANGLE_HIGH);
+        MarkTime(T);
+        Repeat
+          If FindNormalRandoms Then
+            Exit;
+          Wait(100);
+          If TimeFromMark(T)>6000 Then
+            Exit;
+        Until WhereAmI(False)=6;
+        MarkTime(Timeout);
+        Exit;
+      End Else
+        Failsafe;
+    End;
+  End;
+
+End;
+
+Function HasHair:Boolean;
+Begin
+  Result:=CountColorTolerance(HairColor,227,111,300,180,HairTolerance)>5;
+End;
+
+Function Pipe:Boolean;
+Var
+  H,I,CTS,X,Y: Integer;
+  TPA: TPointArray;
+  ATPA: T2DPointArray;
+Begin
+
+  If Not LoggedIn Then
+    Exit;
+
+  FindNormalRandoms;
+
+  MakeCompass('N');
+
+  CTS:= GetColorToleranceSpeed;
+  ColorToleranceSpeed(2);
+
+  SetColorSpeed2Modifiers(0.43, 0.39);
+  FindColorsSpiralTolerance(MSCX, MSCY, TPA, 5593442, MSX1, MSY1, MSX2, MSY2, 12);
+  ColorToleranceSpeed(CTS);
+  SetColorSpeed2Modifiers(0.2, 0.2);
+
+  ATPA:=SplitTPA(TPA,10);
+
+  If (Length(ATPA) = 0) Then
+  Begin
+    If Debug Then
+      Writeln('No Pipe Colors Found');
+    Exit;
+  End;
+
+  If Debug Then
+    DebugATPABounds(ATPA);
+
+  H := High(ATPA);
+
+  For I := 0 To H Do
+  Begin
+    MiddleTPAEx(ATPA[I],X,Y);
+
+    If Debug Then
+      Writeln('Length of possible Pipe: '+tostr(Length(ATPA[I])));
+
+    If Length(ATPA[I]) < 300 then
+      Continue;
+
+    MMouse(X,Y,5,5);
+    If WaitUpTextMulti(['Squeeze','ze-','stacle','acle'],RandomRange(200,300)) Then
+    Begin
+      ClickMouse2(True);
+      Result:=True;
+      MarkTime(Timeout);
+      MouseBox(596,79,605,90,Mouse_Move);
+      Exit;
+    End;
+  End;
+End;
+
+Procedure Tests;
+Begin
+  Writeln('Hair Color Count: '+ToStr(CountColorTolerance(HairColor,227,111,273,180,HairTolerance)));
+  If CountColorTolerance(HairColor,227,111,273,180,HairTolerance) <= 5 Then
+    Writeln('HairColor Not Good enough must be at least 5!!');
+End;
+
+Procedure Mainloop;
+Var
+  T: Integer;
+  Lost: Boolean;
+Begin
+  If TimeFromMark(Timeout)>6000 Then
+  Begin
+    Lost:=True;
+    RunEnergy(50);
+  End;
+  If TimeFromMark(Timeout)>20000 Then
+    If PercentBlackMM<50 Then
+      WalkToStart;
+
+  Case WhereAmI(Lost) Of
+    0:  If Not WaitFunc(@CrossLog,100,RandomRange(4000,5000)) Then
+        Begin
+          MakeCompass('N');
+          WalkToStart;
+        End;
+    1:  If Not WaitFunc(@ClimbNet,100,RandomRange(4000,5000)) Then
+        Begin
+          MakeCompass('S');
+          SetAngle(SRL_ANGLE_HIGH);
+        End;
+
+    2:  If Not WaitFunc(@ClimbBranch,100,RandomRange(4000,5000)) Then
+        Begin
+          MakeCompass('S');
+          SetAngle(SRL_ANGLE_HIGH);
+        End;
+
+    3:  If Not WaitFunc(@BalanceRope,100,RandomRange(4000,5000)) Then
+        Begin
+          MakeCompass('S');
+          SetAngle(SRL_ANGLE_HIGH);
+        End;
+
+    4:  If Not WaitFunc(@DownTree,100,RandomRange(4000,5000)) Then
+        Begin
+          MakeCompass('S');
+          SetAngle(SRL_ANGLE_HIGH);
+        End;
+
+    5:  If Not ClimbNet2 Then
+        Begin
+          MakeCompass('N');
+          SetAngle(SRL_ANGLE_LOW);
+          WaitFunc(@ClimbNet2,100,RandomRange(4000,5000));
+        End;
+
+    6:  If WaitFunc(@Pipe,100,RandomRange(5000,6000)) Then
+        Begin
+          MarkTime(T);
+          Repeat
+            If FindNormalRandoms Then
+              Exit;
+            Wait(RandomRange(800,1300));
+            If TimefromMark(T)>30000 Then
+              Exit;
+            If Debug Then
+              Writeln('Pipe color count :'+ToStr(CountColorTolerance(2703189,70,0,427,119,20)));
+            If (HasHair) And ((FindBlackChatMessage('prpe')) Or (FindBlackChatMessage('use'))) And (CountColorTolerance(2703189,70,0,427,119,20)>15000) Then
+              Pipe;
+          Until (CountColorTolerance(2703189,70,0,427,119,20)<1000);
+          If Debug Then
+            Writeln('Final Pipe color count :'+ToStr(CountColorTolerance(2703189,70,0,427,119,20)));
+          Wait(RandomRange(500,700));
+          MarkTime(Timeout);
+          ProgressReport;
+        End Else
+        Begin
+          MakeCompass('N');
+          SetAngle(SRL_ANGLE_HIGH);
+        End;
+    7: WaitFunc(@WalkToStart,100,RandomRange(4000,5000));
+  End;
+
+End;
+
+Procedure Setup;
+Begin
+  AutoUpdateMe;
+  DeclarePlayers;
+  SetupSRL;
+  SetDTM;
+  AddOnTerminate('F33DTM');
+  Smart_ClearCanvas;
+  ClearDebug;
+  SRL_COMBATRANDOMS:=FALSE;
+  If POSDebug Then
+    Repeat
+      Writeln('Location: ' + ToStr(WhereAmI(False)));
+      Wait(100);
+    Until False;
+  If Not LoggedIn Then
+  Begin
+    Loginplayer;
+    Wait(RandomRange(2000,3000));
+  End;
+  SetAngle(SRL_ANGLE_HIGH);
+  MakeCompass('N');
+  FixGraphics;
+End;
+
+Begin
+  Setup;
+  If Not TestHair Then
+  Begin
+    WalkToStart;
+    MarkTime(Timeout);
+    Repeat
+      Mainloop;
+      FindNormalRandoms;
+    Until Not LoggedIn;
+  End Else
+    Repeat
+      Tests;
+      Wait(100);
+    Until False;
+end.

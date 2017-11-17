@@ -1,0 +1,504 @@
+{$include_once R_DDSolve.simba}
+{$include_once R_ForesterSolve.simba}
+{$include_once R_MazeSolve.simba}
+{$include_once R_MimeSolve.simba}
+{$include_once R_PrisonPeteSolve.simba}
+
+type
+  R_Random = record
+    RandName: String;
+    SolveRandom, DetectRandom: function(): Boolean;
+    Solved, Failed: Integer;
+end;
+
+var
+  R_Randoms : array[0..14] of R_Random;
+  R_CombatRandoms, R_PrayerRandoms, R_Reincarnate: Boolean;
+  R_RunAwayDirection: String;
+  R_Deaths: Integer;
+  R_FoundNpcs: TNPCArray;
+
+{$include_once R_FrogSolve.simba}
+{$include_once R_TalkRandoms.simba}
+
+(*
+R_SetupRandoms
+~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+  procedure R_SetupRandoms;
+
+Sets up all need info for Reflection Randoms
+
+.. note::
+
+  by Krazy Meerkat
+
+*)
+procedure R_SetupRandoms;
+var
+  i: Integer;
+begin
+  R_RunAwayDirection := 'random';
+  R_Reincarnate := False;
+  R_CombatRandoms := True;
+  for i:= 0 to high(R_Randoms) do
+  begin
+    case i of
+      0:
+      begin
+        R_Randoms[i].RandName := 'Mime';
+        R_Randoms[i].DetectRandom := @R_DetectMime;
+        R_Randoms[i].SolveRandom := @R_SolveMime; //Solved
+      end;
+      1:
+      begin
+        R_Randoms[i].RandName := 'Drill Demon';
+        R_Randoms[i].DetectRandom := @R_DetectDD;
+        R_Randoms[i].SolveRandom := @R_SolveDD; //Solved
+      end;
+      2:
+      begin
+        R_Randoms[i].RandName := 'Prison Pete';
+        R_Randoms[i].DetectRandom := @R_DetectPrisonPete;
+        R_Randoms[i].SolveRandom := @R_SolvePrisonPete; //Detection only
+      end;
+      3:
+      begin
+        R_Randoms[i].RandName := 'Maze';
+        R_Randoms[i].DetectRandom := @R_DetectMaze;
+        R_Randoms[i].SolveRandom := @R_SolveMaze; //Detection only
+      end;
+      4:
+      begin
+        R_Randoms[i].RandName := 'Evil Bob';
+        R_Randoms[i].DetectRandom := @EB_Detect;
+        R_Randoms[i].SolveRandom := @EB_Solve; //SRL Solver for now
+      end;
+      5:
+      begin
+        R_Randoms[i].RandName := 'Mordaut';
+        R_Randoms[i].DetectRandom := @MD_Detect;
+        R_Randoms[i].SolveRandom := @MD_Solve; //SRL Solver for now
+      end;
+      6:
+      begin
+        R_Randoms[i].RandName := 'Abyss';
+        R_Randoms[i].DetectRandom := @Abyss_Detect;
+        R_Randoms[i].SolveRandom := @Abyss_Solve; //SRL Solver for now
+      end;
+      7:
+      begin
+        R_Randoms[i].RandName := 'Pinball';
+        R_Randoms[i].DetectRandom := @PB_Detect;
+        R_Randoms[i].SolveRandom := @PB_Solve; //SRL Solver for now
+      end;
+      8:
+      begin
+        R_Randoms[i].RandName := 'Pillory Cage';
+        R_Randoms[i].DetectRandom := @PL_Detect;
+        R_Randoms[i].SolveRandom := @PL_Solve; //SRL Solver for now
+      end;
+      9:
+      begin
+        R_Randoms[i].RandName := 'Quiz Master';
+        R_Randoms[i].DetectRandom := @Quiz_Detect;
+        R_Randoms[i].SolveRandom := @Quiz_Solve; //SRL Solver for now
+      end;
+      10:
+      begin
+        R_Randoms[i].RandName := 'Beekeeper';
+        R_Randoms[i].DetectRandom := @BK_Detect;
+        R_Randoms[i].SolveRandom := @BK_Solve; //SRL Solver for now
+      end;
+      11:
+      begin
+        R_Randoms[i].RandName := 'Rewards';
+        R_Randoms[i].DetectRandom := @RD_Detect;
+        R_Randoms[i].SolveRandom := @RD_Solve; //SRL Solver for now
+      end;
+      12:
+      begin
+        R_Randoms[i].RandName := 'Freaky Forester';
+        R_Randoms[i].DetectRandom := @R_DetectForester;
+        R_Randoms[i].SolveRandom := @R_SolveForester; //SRL Solver for now
+      end;
+      13:
+      begin
+        R_Randoms[i].RandName := '';
+        R_Randoms[i].DetectRandom := @R_FindTalk;
+        R_Randoms[i].SolveRandom := @R_SolveTalk;
+      end;
+      14:
+      begin
+        R_Randoms[i].RandName := 'Frog';
+        R_Randoms[i].DetectRandom := @R_FindFrog;
+        R_Randoms[i].SolveRandom := @R_SolveFrog;
+      end;
+    end;
+  end;
+end;
+
+(*
+R_FindDead
+~~~~~~~~~~
+
+.. code-block:: pascal
+
+  function R_FindDead: Boolean;
+
+Returns True if player is dead unless R_Reincarnate = True
+
+.. note::
+
+  by elfyyy
+
+*)
+function R_FindDead: Boolean;
+begin
+  Result := (R_GetHealth = 0);
+  if Result then begin
+    writeln('[Reflection Anti-Randoms] Detected we are dead, logging out.');
+    Inc(R_Deaths);
+    if (not R_Reincarnate) then begin
+      Wait(15000);
+      LogOut;
+      Players[CurrentPlayer].Active := False;
+    end;
+  end;
+end;
+
+(*
+R_FindCombatRandom
+~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+  function R_FindCombatRandom: boolean;
+
+Returns True if player is in a Combat random.
+
+.. note::
+
+  by elfyyy
+
+*)
+function R_FindCombatRandom: boolean;
+var
+  Names: TStringArray;
+  Temp: TNPCArray;
+  i: integer;
+begin
+  Result := False;
+  if (not R_UnderAttack) then
+    exit;
+  if (R_PrayerRandoms) then
+  begin
+    Names := ['security guard', 'evil chicken', 'river troll', 'rock golem', 'shade', 'swarm', 'tree spirit', 'ent', 'zombie'];
+  end else
+    Names := ['security guard', 'evil chicken', 'river troll', 'rock golem', 'shade', 'swarm', 'tree spirit', 'ent'];
+  Temp := R_GetAllNpcs;
+  for i := 0 to high(Temp) do
+  if (ExactStrInArr(Lowercase(Temp[i].Name), Names)) then
+  begin
+    if (Temp[i].Interacting <> R_GetPlayerIndex) then
+      Continue;
+    Result := True;
+    Break;
+  end;
+  if Result then
+    writeln('[Reflection Anti-Randoms] ''' + (Temp[i].Name) + ''' Combat random detected! Running away...');
+end;
+
+function R_FindCombatRandomEx: boolean;
+var
+  Names: TStringArray;
+  i: integer;
+begin
+  Result := False;
+  if ((not R_UnderAttack) or (length(R_FoundNpcs) < 1)) then
+    exit;
+  if (R_PrayerRandoms) then
+  begin
+    Names := ['security guard', 'evil chicken', 'river troll', 'rock golem', 'shade', 'swarm', 'tree spirit', 'ent', 'zombie'];
+  end else
+    Names := ['security guard', 'evil chicken', 'river troll', 'rock golem', 'shade', 'swarm', 'tree spirit', 'ent'];
+  for i := 0 to high(R_FoundNpcs) do
+  if (ExactStrInArr(Lowercase(R_FoundNpcs[i].Name), Names)) then
+  begin
+    R_FoundNpcs[i]:= R_GetTNPC(R_FoundNpcs[i].Index);
+    if (R_FoundNpcs[i].Interacting <> R_GetPlayerIndex) then
+      continue;
+    Result := True;
+    Break;
+  end;
+  if Result then
+    writeln('[Reflection Anti-Randoms] ''' + (R_FoundNpcs[i].Name) + ''' Combat random detected! Running away...');
+end;
+
+(*
+R_FindNormalRandoms
+~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+  function R_FindNormalRandoms: Boolean;
+
+Solves all Randoms using Reflection first, and SRL solvers second
+
+.. note::
+
+  by Krazy Meerkat, elfyyy, & Frement
+
+*)
+function R_FindNormalRandoms: Boolean;
+begin
+  Result := False;
+  (*
+  R_FoundNpcs:= R_SortNPCs(R_GetAllNpcs);
+  for i := 0 to high(R_Randoms) do
+  begin
+    if ((R_Randoms[i].RandName = 'Rewards') and not(R_InventoryRandoms)) then
+      Continue;
+    if ({$IFDEF Lape}@{$ENDIF}R_Randoms[i].DetectRandom <> nil) and (R_Randoms[i].DetectRandom()) then
+    begin
+      Result := True;
+      writeln('[Reflection Anti-Randoms] '+R_Randoms[i].RandName+' random detected! Solving...');
+    if ({$IFDEF Lape}@{$ENDIF}R_Randoms[i].SolveRandom <> nil) and (R_Randoms[i].SolveRandom()) then
+      begin
+        writeln('[Reflection Anti-Randoms] Solved '+R_Randoms[i].RandName+' random!');
+        Inc(R_Randoms[i].Solved);
+        Exit;
+      end else
+      begin
+        writeln('[Reflection Anti-Randoms] Failed '+R_Randoms[i].RandName+' random, logging out.');
+        Inc(R_Randoms[i].Failed);
+        players[currentPlayer].active := false;
+        logout;
+        Exit;
+      end;
+    end;
+  end;
+  if R_CombatRandoms then
+    if (length(R_FoundNpcs) > 0) then
+      if R_FindCombatRandomEx then
+      begin
+        R_RunAway(R_RunAwayDirection, 30, True);
+        Exit;
+      end;
+  *)
+  if (R_Return(Result, @FindMod)) then
+    Exit;
+  if (R_Return(Result, @R_FindDead)) then
+    Exit;
+end;
+
+(*
+R_FNRWait
+~~~~~~~~~
+
+.. code-block:: pascal
+
+  function R_FNRWait(Time, WaitPerLoop: integer): Boolean;
+
+Used instead of Wait() or Sleep() and checks for Reflection Randoms.
+WaitPerLoop is the time frequancy to check for randoms. 50-100 is average.
+
+.. note::
+
+  by elfyyy
+
+*)
+function R_FNRWait(Time, WaitPerLoop: integer): Boolean;
+var
+  StartTime: integer;
+begin
+  Result := False;
+  MarkTime(StartTime);
+  while (not result) and (GetSystemTime - StartTime < Time) do begin
+    Result := R_FindNormalRandoms;
+    wait(WaitPerLoop);
+  end;
+end;
+
+(*
+R_GetToTile
+~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    R_GetToTile(TheTile, NextPoint: TPoint): Boolean;
+
+Walks to the tile using the minimap and reflection.
+Full Anti-Random support while walking!
+
+.. note::
+
+  by Krazy_Meerkat
+
+*)
+function R_GetToTile(TheTile, NextPoint: TPoint): Boolean;
+var
+   msTile: TPoint;
+   t: Integer;
+begin
+  Result := false;
+  msTile := R_TileToMM(TheTile);
+  if not(rs_OnMiniMap(msTile)) then
+    Exit;
+  t := getsystemtime;
+  if (NextPoint.x = -1) then
+  begin
+    repeat
+      msTile := R_TileToMM(TheTile);
+      Mouse(msTile.x, msTile.y, 1, 1, true);
+      Wait(RandomRange(80, 100));
+      if (not(R_IsWalking)) then
+      begin
+        repeat
+          wait(50+random(50));
+          R_FindNormalRandoms;
+        until(R_IsWalking or ((GetSystemTime - t) > (1000+random(500))));
+      end;
+      repeat
+        wait(50+random(50));
+        R_FindNormalRandoms;
+      until(not(R_IsWalking));
+    until((R_NearTile(TheTile, 5)) or ((GetSystemTime - t) > 59999));
+  end;
+  if (NextPoint.x > -1) then
+  begin
+    repeat
+      msTile := R_TileToMM(TheTile);
+      Mouse(msTile.x, msTile.y, 1, 1, true);
+      Wait(RandomRange(80, 100));
+      if (not(R_IsWalking)) then
+      begin
+        repeat
+          wait(50+random(50));
+          R_FindNormalRandoms;
+        until(R_IsWalking or ((GetSystemTime - t) > (1000+random(500))));
+      end;
+      repeat
+        wait(50+random(50));
+        R_FindNormalRandoms;
+      until((R_NearTile(TheTile, 5) and R_TileOnMM(NextPoint)) or not(R_IsWalking));
+    until((R_NearTile(TheTile, 5) and R_TileOnMM(NextPoint)) or ((GetSystemTime - t) > 59999));
+  end;
+  Result := (GetSystemTime - t) < 60000;
+end;
+
+
+(*
+R_WebWalk
+~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    R_WebWalk(T: TPoint): Boolean;
+
+Walks blindly using WindPath!
+
+.. note::
+
+  by JuKKa, Modified by Krazy_Meerkat
+
+*)
+function R_WebWalk(T: TPoint): Boolean;
+var
+  I: Integer;
+  M: TPoint;
+  CTRLPoints: TPointArray;
+begin
+  Result:= false;
+  repeat
+    M := R_GetTileGlobal;
+    CtrlPoints := r_WindPath(M.x, M.y, T.X, T.Y, 5.0, 2.5, 0.0, 0.0, 4.5, 2.5);
+    for I:= High(CtrlPoints) DownTo 0 Do
+      if (I = 0) then
+      begin
+        if R_GetToTile(CtrlPoints[i], Point(-1,-1)) Then
+        begin
+          Result := I = High(CtrlPoints);
+          Break;
+        end;
+      end else
+      begin
+        if R_GetToTile(CtrlPoints[i], CtrlPoints[i-1]) Then
+        begin
+          Result := I = High(CtrlPoints);
+          Break;
+        end;
+      end;
+  until(Result);
+end;
+
+(*
+R_PerfectPath
+~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    R_PerfectPath(Path: TPointArray);
+
+Walks the path like a human would, if a point isn't visible on the MM it
+uses WebWalk until the point becomes visable. Works with any amount of
+path points at any distance apart.
+Full Anti-Random support while walking!
+
+.. note::
+
+  by Krazy_Meerkat
+
+*)
+procedure R_PerfectPath(Path: TPointArray);
+var
+  i, e, f, g: Integer;
+  tpa: TPointArray;
+begin
+  f:= 0;
+  SetArrayLength(TPA, length(Path));
+  for i:= 0 to high(path) do
+    TPA[i]:= Path[i];
+  SortTPAFrom(TPA, R_GetTileGlobal);
+  for g := 0 to high(path) do
+    if ((TPA[0].x=path[g].x) and (TPA[0].y=path[g].y)) then
+      f := g;
+  for i:= f to High(Path) do
+  begin
+    if (i = High(Path)) then
+    begin
+      repeat
+        wait(100+random(50));
+        if not(R_NearTile(Path[i], 100)) then Exit;
+        if not(R_TileOnMM(Path[i])) then
+          R_WebWalk(Path[i]);
+      until(R_GetToTile(Path[i], Point(-1,-1)));
+    end else
+    begin
+      for e:= f to High(Path) do
+      begin
+        if R_TileOnMM(Path[e]) then
+          i:= e;
+      end;
+      if (i = High(Path)) then
+      begin
+        repeat
+          wait(100+random(50));
+        if not(R_NearTile(Path[i], 100)) then Exit;
+          if not(R_TileOnMM(Path[i])) then
+            R_WebWalk(Path[i]);
+        until(R_GetToTile(Path[i], Point(-1,-1)));
+      end else
+      begin
+        repeat
+          wait(100+random(50));
+        if not(R_NearTile(Path[i], 100)) then Exit;
+          if not(R_TileOnMM(Path[i])) then
+            R_WebWalk(Path[i]);
+        until(R_GetToTile(Path[i], Path[i+1]));
+      end;
+    end;
+  end;
+end;

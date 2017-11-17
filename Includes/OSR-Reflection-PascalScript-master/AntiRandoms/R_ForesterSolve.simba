@@ -1,0 +1,21 @@
+{* R_ForesterSolve
++Detection and Solving
++By: Krazy_Meerkat
++
++*}
+
+function R_DetectForester: boolean;
+var
+  me: Tpoint;
+begin
+  result:= false;
+  me:= R_GetTileGlobal;
+  if (((me.x > 2594) and (me.x < 2612)) and ((me.y > 4766) and (me.y < 4781))) then
+    result:= true;
+end;
+
+function R_SolveForester: boolean;
+begin
+  Result:= false;
+    exit;
+end; 

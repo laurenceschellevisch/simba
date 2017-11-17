@@ -1,0 +1,23 @@
+{$I RSWalker/Walker.simba}
+
+var
+  RSW:TRSWalker;
+  t:UInt32;
+begin
+  RSW.Init('world.png');
+  WriteLn('RSW is setup!');
+
+  //The first scan is a lot slower then the next scans, it's used to setup stuff..
+  t := GetTimeRunning();
+  WriteLn('I am here: ', RSW.GetMyPos(), ' used: ', GetTimeRunning()-t,'ms');
+
+  //scan again.. this time it will be pretty much "instant".. same for all of the future times.
+  t := GetTimeRunning();
+  WriteLn('I am here: ', RSW.GetMyPos(), ' used: ', GetTimeRunning()-t,'ms');
+
+  //one more time to prove my point..:
+  t := GetTimeRunning();
+  WriteLn('I am still here: ', RSW.GetMyPos(), ' used: ', GetTimeRunning()-t,'ms');
+
+  RSW.Free();
+end.                  d

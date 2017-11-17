@@ -1,0 +1,738 @@
+(*
+R_GetJavaString
+~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function R_GetJavaString(javaString: integer; maxLength: integer): string;
+
+Returns a string from a javaString with a specified maxLength. Do not let it
+overflow, bad things will happen.
+
+.. note::
+
+  by BenLand100
+
+*)
+function R_GetJavaString(javaString: integer; maxLength: integer): string;
+begin
+  SetLength(result, maxLength);
+  SetLength(result, SmartStringFromString(SmartCurrentTarget, javaString, result));
+  Result := Replace(Result, 'Â', '');
+  Result := Replace(Result, #160, #32);
+end;
+
+(*
+R_VariantToDirection
+~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function R_VariantToDirection(dir: Variant): Extended;
+
+Converts a variant to a direction, catching errors and attempts to fix. This
+function expects "compass relative" angles. For example: ('n', 's', 'e', 'w') or
+degree (23.3, 25, 205.2) or 'random' (returns 0..360).
+
+.. note::
+
+    by Nava2
+
+Example:
+
+.. code-block:: pascal
+
+    dir := R_VariantToDirection('n');     // -> 0.0
+    dir := R_VariantToDirection('rand');  // -> in range 0..360
+    dir := R_VariantToDirection(50);      // -> 50
+
+*)
+function R_VariantToDirection(dir: Variant): Extended;
+var
+  e: Extended;
+begin
+  if VariantIsNumber(dir) then
+    Result := FixD(dir + 0.0)
+  else if VariantIsString(dir) then
+    case LowerCase(dir) of
+      'n', 'north': Result := 0;
+      'e', 'east': Result := 90;
+      's', 'south': Result := 180;
+      'w', 'west': Result := 270;
+      'random', 'rand': Result := RandomRange(0, 360);
+      else
+      begin
+        e := StrToFloatDef(dir, -1337);
+        if (e <> -1337) then
+          Result := FixD(e)
+        else
+        begin
+            writeln('dir [' + toStr(dir) +'] invalid. Returned 0.0 for safety');
+          Result := 0.0;
+        end;
+      end;
+    end;
+end;
+
+(*
+RemoveDeadTPA
+~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function RemoveDeadTPA(list:TPointArray): TPointArray;
+
+Removes any dead values in a Tpa, must be sorted from low to high.
+
+.. note::
+
+  by Krazy Meerkat & elfyyy
+
+*)
+function RemoveDeadTPA(list:TPointArray): TPointArray;
+var
+  maxlength, ls: Integer;
+  newlist: TPointArray;
+begin
+  if length(list) = 0 then
+    exit;
+  maxlength:= 0;
+  SetLength(newlist, length(list));
+  for ls:=0 to high(list) do
+  begin
+    if (not(list[ls].x = 0) and not(list[ls].y = 0)) then
+    begin
+      newlist[maxlength]:= List[ls];
+      maxlength:= maxlength + 1;
+    end;
+  end;
+  SetLength(newlist, maxlength);
+  result:= newlist;
+end;
+
+(*
+RemoveDeadTIA
+~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function RemoveDeadTIA(list:TIntegerArray): TIntegerArray;
+
+Removes any dead values in a Tia, must be sorted from low to high.
+
+.. note::
+
+  by Krazy Meerkat & elfyyy
+
+*)
+function RemoveDeadTIA(list:TIntegerArray): TIntegerArray;
+var
+  maxlength, ls: Integer;
+  newlist: TIntegerArray;
+begin
+  if length(list) = 0 then
+    exit;
+  maxlength:= 0;
+  SetLength(newlist, length(list));
+  for ls:=0 to high(list) do
+  begin
+    if not(List[ls] < 1) then
+    begin
+      newlist[maxlength]:= List[ls];
+      maxlength:= maxlength + 1;
+    end;
+  end;
+  SetLength(newlist, maxlength);
+  result:= newlist;
+end;
+
+(*
+InLocalArray
+~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    InLocalArray(ilocal: TintegerArray; new: Integer): Boolean;
+
+Returns true if integer "new" is found in array "ilocal"
+
+
+.. note::
+
+  by Krazy_Meerkat
+
+*)
+function InLocalArray(ilocal: TintegerArray; new: Integer): Boolean;
+var ns: integer;
+begin
+  result:= false;
+  for ns:=0 to high(ilocal) do
+  begin
+    if (ilocal[ns] = new) then result:= true;
+  end;
+end;
+
+(*
+ArrayCombination
+~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    ArrayCombination(orig, new: TintegerArray): TintegerArray;
+
+Combines 2 TIA's without adding any duplicate values and returns
+the resulting array.
+
+
+.. note::
+
+  by Krazy_Meerkat
+
+*)
+function ArrayCombination(orig, new: TintegerArray): TintegerArray;
+var
+  maxlength, ls, ns: Integer;
+begin
+  if length(orig) = 0 then
+    Setlength(orig, 1);
+  maxlength:= length(orig); //get unused array slot
+  SetLength(orig, (maxlength + length(new)));
+  for ls:=0 to high(orig) do
+  begin
+    for ns:=0 to high(new) do
+    begin
+      if ((orig[ls] = 0) and not(InLocalArray(orig, new[ns]))) then
+        orig[ls]:= new[ns];
+    end;
+  end;
+  result:= RemoveDeadTIA(orig);
+end;
+
+(*
+R_Return
+~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function R_Return(var B: Boolean; F: function: Boolean): Boolean;
+
+function Performs a lape function in pascalscript
+
+.. note::
+
+  by Frement
+
+*)
+function R_Return(var B: Boolean; F: function: Boolean): Boolean;
+begin
+  B := F();
+  Result := B;
+end;
+
+(*
+R_GetSettingArray
+~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function R_GetSettingArray: TIntegerArray;
+
+Retrives the Settings array from the client.
+
+.. note::
+
+  by Drags111, modified by elfyyy
+
+*)
+function R_GetSettingArray: TIntegerArray;
+var
+  i: Integer;
+begin
+  SetLength(Result, 2000);
+  for i := 0 to 1999 do
+    Result[i] := SmartGetFieldArrayInt(SmartCurrentTarget, 0, Client_GameSettings, i);
+end;
+
+{*R_GetSetting
+~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function R_GetSetting(Setting: Integer): Integer;
+
+Gets the setting value at the specified index.
+
+.. note::
+
+  by Drags111
+
+*}
+function R_GetSetting(Setting: Integer): Integer;
+var
+  SA: TIntegerArray;
+begin
+  SA := R_GetSettingArray;
+  if(Setting < Length(SA))then
+    Result := SA[Setting]
+  else
+  begin
+    writeln('Incorrect setting index passed to GetSetting + R_GetSetting');
+    Result := -1;
+  end;
+end;
+
+{*RemoveFormatting
+~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function RemoveFormatting(Text: String): String;
+
+Removes Unwanted formating from string for uptext.
+
+.. note::
+
+  by Frement
+
+*}
+function RemoveFormatting(Text: String): String;
+var
+  I: Integer;
+  Skip: Boolean;
+begin
+  for I := 1 to Length(Text) do begin
+    if (Text[I] = '<') then
+      Skip := True;
+
+    if (Skip) and (Text[I] = '>') then begin
+      Skip := False;
+      Continue;
+    end;
+
+    if (Skip) then
+      Continue;
+
+    Result := Result + Text[I];
+  end;
+  Result := Replace(Result, '  ', ' ');
+end;
+
+{*R_GetMenuIndex
+~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function R_GetMenuIndex(Option: String; Options: TStringArray): Integer;
+
+Returns Menu index of giveen option.
+
+.. note::
+
+  by Frement
+
+*}
+function R_GetMenuIndex(Option: String; Options: TStringArray): Integer;
+var
+  I: Integer;
+begin
+  Result := -1;
+  for I := 0 to High(Options) do begin
+    if (Pos(Option, Options[I]) > 0) then begin
+      Result := I;
+      Exit;
+    end;
+  end;
+end;
+
+{*R_IsMenuOpen
+~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function R_IsMenuOpen: Boolean;
+
+Returns true if menu is open.
+
+.. note::
+
+  by Frement
+
+*}
+function R_IsMenuOpen: Boolean;
+begin
+  Result := SmartGetFieldBoolean(SmartCurrentTarget, 0, client_isMenuOpen);
+end;
+
+{*R_GetMenuOptions
+~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function R_GetMenuOptions: TStringArray;
+
+Returns array of menu options.
+
+.. note::
+
+  by Frement
+
+*}
+function R_GetMenuOptions: TStringArray;
+var
+  ActInt, OptInt, Count, I, J: Integer;
+  Act, Opt: String;
+begin
+  Count := SmartGetFieldInt(SmartCurrentTarget, 0, client_menuCount) * client_menuCount_Multiplier;
+  SetLength(Result, Count);
+  for I := Count - 1 downto 0 do begin
+    Act := '';
+    Opt := '';
+    ActInt := SmartGetFieldArrayObject(SmartCurrentTarget, 0, client_menuActions, I);
+    OptInt := SmartGetFieldArrayObject(SmartCurrentTarget, 0, client_menuOptions, I);
+    Act := Trim(R_GetJavaString(ActInt, 512));
+    Opt := RemoveFormatting(Trim(R_GetJavaString(OptInt, 512)));
+    Result[J] := Trim(Act + ' ' + Opt);
+    Inc(J);
+    SmartFreeObject(SmartCurrentTarget, ActInt);
+    SmartFreeObject(SmartCurrentTarget, OptInt);
+  end;
+end;
+
+{*R_OptionExists
+~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function R_OptionExists(Option: String): Boolean;
+
+Checks if an option exists, without opening the menu.
+
+.. note::
+
+  by Frement
+
+*}
+function R_OptionExists(Option: String): Boolean;
+begin
+  Result := (R_GetMenuIndex(Option, R_GetMenuOptions) <> -1);
+end;
+
+{*R_ChooseOption
+~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function R_ChooseOption(Option: String): Boolean;
+
+Clicks on given option in open menu
+
+.. note::
+
+  by Frement
+
+*}
+
+function R_ChooseOption(Option: String): Boolean;
+var
+  Index, MenuX, MenuY, MenuWidth, XOff, YOff: Integer;
+  Options: TStringArray;
+  Left: Boolean;
+begin
+  Options := R_GetMenuOptions;
+  if (not R_IsMenuOpen) then
+    Exit;
+  Index := R_GetMenuIndex(Option, Options);
+  MenuX := SmartGetFieldInt(SmartCurrentTarget, 0, client_menuX) * client_menuX_Multiplier + 4;
+  MenuY := SmartGetFieldInt(SmartCurrentTarget, 0, client_menuY) * client_menuY_Multiplier + 4;
+  MenuWidth := SmartGetFieldInt(SmartCurrentTarget, 0, client_menuWidth) * client_menuWidth_Multiplier;
+  XOff := RandomRange(4, MenuWidth - 4);
+  YOff := RandomRange(20, 25) + (Index * 15);
+  if (MenuX + (MenuWidth div 2) > 765) then
+  begin
+    Left := True;
+  end;
+  if (MenuX - (MenuWidth div 2) < 0) then
+  begin
+    Left := False;
+  end;
+  if (Index = -1) then
+  begin
+    GetMousePos(MenuX, MenuY);
+    if (Left) then
+      MMouse(MenuX - 30 - MenuWidth + Random(10), MenuY + RandomRange(-2, 2), 2, 2)
+    else
+      MMouse(MenuX + 30 + MenuWidth + Random(10), MenuY + RandomRange(-2, 2), 2, 2);
+    Exit;
+  end;
+  MMouse(MenuX + XOff, MenuY + YOff, 2, 2);
+  Sleep(RandomRange(100, 250));
+  ClickMouse2(Mouse_Left);
+  Result := True;
+end;
+
+{*R_WaitChooseOption
+~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function R_WaitChooseOption(Option: String; Time: Integer): Boolean;
+
+Waits until option is found and clicks it.
+
+.. note::
+
+  by Frement
+
+*}
+function R_WaitChooseOption(Option: String; Time: Integer): Boolean;
+var
+  T: Integer;
+begin
+  Result := False;
+  T := GetSystemTime + Time;
+  while (GetSystemTime < T) do
+  begin
+    if (R_IsMenuOpen) then
+    begin
+      Result := R_ChooseOption(Option);
+      Exit;
+    end;
+    Wait(20 + Random(20));
+  end;
+end;
+
+{*R_GetUpText
+~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function R_GetUpText: String;
+
+Returns uptext
+
+.. note::
+
+  by Frement
+
+*}
+function R_GetUpText: String;
+var
+  Options: TStringArray;
+begin
+  Options := R_GetMenuOptions;
+  if ((High(Options) - 1) > 0) then
+    Result := Options[0] + ' / ' + ToStr(High(Options) - 1) + ' more options'
+  else
+    Result := Options[0];
+  if (Result = 'Cancel') then
+    Result := '';
+end;
+
+(*
+R_IsUpTextMulti
+~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function R_IsUpTextMulti(UpText: TStringArray): Boolean;
+
+Returns true if any instance of the UpText is found.
+
+.. note::
+
+  by Drags111
+
+*)
+function R_IsUpTextMulti(UpText: TStringArray): Boolean;
+var
+  I, T: integer;
+  UT: String;
+begin
+  Result := False;
+  MarkTime(T);
+  while(UT = '')do
+  begin
+    UT := R_GetUpText;
+    if(TimeFromMark(T) > 1000)then
+      Exit;
+    Wait(50+Random(50));
+  end;
+  for I := 0 to High(UpText) do
+  begin
+    Result := Pos(Trim(UpText[I]), UT) > 0;
+    if Result then Exit;
+  end;
+end;
+
+(*
+R_IsUpText
+~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function R_IsUpText(UpText: string): Boolean;
+
+Description: Returns true if UpText is found.
+
+.. note::
+
+  by Drags111
+
+*)
+function R_IsUpText(UpText: string): Boolean;
+begin
+  Result := R_IsUpTextMulti([UpText]);
+end;
+
+(*
+R_WaitUpTextMulti
+~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function R_WaitUpTextMulti(S: TStringArray; Time: Integer): Boolean;
+
+Waits for an uptext in the UpText array.
+
+.. note::
+
+  by Naike
+
+*)
+function R_WaitUpTextMulti(S: TStringArray; Time: Integer): Boolean;
+var
+  T: Integer;
+begin
+  Result := False;
+  T := GetSystemTime + Time;
+  while (GetSystemTime < T) do
+  begin
+    if R_IsUpTextMulti(S) then
+    begin
+      Result := True;
+      Exit;
+    end;
+    Wait(20 + Random(10));
+  end;
+end;
+
+(*
+R_WaitUpText
+~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function R_WaitUpText(S: String; Time: Integer): Boolean;
+
+Waits for the UpText
+
+.. note::
+
+  by Naike
+
+*)
+function R_WaitUpText(S: String; Time: Integer): Boolean;
+begin
+  Result := R_WaitUpTextMulti([S], Time);
+end;
+
+(*
+R_GetPlayerName
+~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function R_GetPlayerName: String;
+
+Gets current player name
+
+.. note::
+
+  by Frement
+
+*)
+function R_GetPlayerName: String;
+var
+  _Player, _PlayerName: Integer;
+begin
+  _Player := SmartGetFieldObject(SmartCurrentTarget, 0, Client_LocalPlayer);
+  _PlayerName := SmartGetFieldObject(SmartCurrentTarget, _Player, Player_name);
+  Result := R_GetJavaString(_PlayerName, 512);
+  SmartFreeObject(SmartCurrentTarget, _PlayerName);
+  SmartFreeObject(SmartCurrentTarget, _Player);
+end;
+
+(*
+R_GetClientLoopCycle
+~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function R_GetClientLoopCycle: integer;
+
+Returns the current value of the client loop cycle
+
+.. note::
+
+  by elfyyy
+
+*)
+function R_GetClientLoopCycle: integer;
+begin
+  result :=  SmartGetFieldInt(SmartCurrentTarget, 0, client_LoopCycle) * client_LoopCycle_Multiplier;
+end;
+
+(*
+R_GetActorLoopCycle
+~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function R_GetActorLoopCycle: integer;
+
+Returns the current value of the Actor loop cycle
+
+.. note::
+
+  by elfyyy
+
+*)
+function R_GetActorLoopCycle: integer;
+var
+  Me: Integer;
+begin
+  Me := SmartGetFieldObject(SmartCurrentTarget, 0, Client_LocalPlayer);
+  result :=  SmartGetFieldInt(SmartCurrentTarget, me, Actor_combatCycle) * Actor_combatCycle_Multiplier;
+  SmartFreeObject(SmartCurrentTarget, Me);
+end;
+
+(*
+StrInArr
+~~~~~~~~
+
+
+
+    function StrInArr(str: string; arrS: TStringArray): Boolean;
+
+Returns True if EXACT str is found in the Array. Case sensitive.
+
+.. note::
+
+    by elfyyy
+
+Example:
+
+.. code-block:: pascal
+
+*)
+function ExactStrInArr(str: string; arrS: TStringArray): Boolean;
+var
+  I, H: Integer;
+begin
+  Result := True;
+  H := High(arrS);
+  for I := 0 to H do
+    if arrS[I] = Str then
+      Exit;
+  Result := False;
+end;

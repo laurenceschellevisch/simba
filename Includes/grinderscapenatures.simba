@@ -1,0 +1,235 @@
+program new;
+{$I SRL-6/SRL.simba}
+
+type
+
+  fnct_actionOptions = (ClickRight, ClickLeft, ClickMiddle, Move, Nothing);
+
+  TOptions = record
+    Str: string;
+    Bounds, BigBox: TBox;
+  end;
+
+var
+  inventorySlots:TBoxArray;
+  loads:integer;
+
+function getUptext():string; var texttpas, textatpa:t2dpointarray; texttpa:tpointarray; textcolors:tintegerarray; i:integer; begin textcolors := [16777215, 16776960, 65535, 65280, 4231423, 28927, 12543, 255]; setLength(textTPAS, length(textColors)); for i := 0 to high(textcolors) do findColors(texttpas[i], textcolors[i], 8, 6, 200, 25); texttpa := mergeAtpa(texttpas); textatpa := splittpaex(texttpa, 1, 10); SortATPAFromFirstPointX(textatpa, Point(0, 0)); result := getTextATPA(textatpa, 3, 'upchars07'); end;
+function string.contains(s:string):boolean; var i:integer; begin for i := 1 to length(self) do if (Pos(s[i], self) > 0) then exit(true); end;
+function isUpTextMulti(Text: TStringArray): Boolean; var txt:string; i:integer; begin txt := getUpText; for i := 0 to High(Text) do if (txt.contains(text[i])) then exit(true); end;
+function waitUpTextMulti(S: TStringArray; Time: Integer): Boolean; var T: Integer; begin result := false; T := GetSystemTime + Time; while (GetSystemTime < T) do begin if (isUpTextMulti(S)) then exit(true) else Wait(20 + Random(20)); end; end;
+function getOptions(): Array of TOptions; var B, BB: TBox; TPA, restpa, blacktpa, newtpa, merged: TPointArray; ATPA, boxatpa, tempatpa, blackatpa, newatpa: T2DPointArray; I, L, target, bmp, w, h: Integer; BoxColors: TIntegerArray; begin target := GetImageTarget; GetClientDimensions(B.X2, B.Y2); B := IntToBox(0, 0, B.X2-1, B.Y2-1); BoxColors := [1845035, 6121839]; setLength(boxatpa, length(boxColors)); for i := 0 to high(boxcolors) do FindColors(boxatpa[i], boxcolors[i], b); tpa := mergeATPA(boxatpa); If Length(tpa) < 100 Then exit; atpa := clusterTpa(tpa, 3); filtertpasbetween(atpa, 0, 50); for i := 0 to High(ATPA) do begin B := GetTPABounds(ATPA[i]); if ((B.x2-B.x1) > 95) and ((B.y2-B.y1) > 18) then Break else B := IntToBox(0, 0, 0, 0); end; If (B.x2 = 0) then exit; findColors(blacktpa, 0, b); if (length(blacktpa) < 0) then exit; tpa := mergeatpa([blacktpa, tpa]); ReturnPointsNotInTPAWrap(tpa, b, resTPA); bmp := CreateBitmap(b.X2-B.X1+2, b.Y2-b.Y1+2); OffsetTPA(restpa, Point(-B.X1, -B.Y1)); FastDrawClear(bmp, 0); DrawTPABitmap(bmp, restpa, clRed); GetbitmapSize(bmp, w, h); settargetbitmap(bmp); SetLength(newatpa, H div 15); for i := 0 to High(newatpa) do FindColorsTolerance(newatpa[i], 255, 0, 0+i*15,  W-1, 14+i*15, 0); L := High(newatpa); SortATPAFromFirstPointY(newatpa, Point(w div 2,0)); SetArrayLength(Result, Length(newatpa)); for i := 0 to high(newatpa) do begin TPA := newatpa[i]; tempatpa := SplitTPAEx(TPA, 1, 10); SortATPAFromFirstPointX(tempatpa, Point(0, 0)); Result[i].Str := GetTextATPA(tempatpa, 4, 'UpChars07'); BB := GetTPABounds(newatpa[i]); Result[i].Bounds := IntToBox(BB.X1+B.X1, BB.Y1+B.Y1, BB.X2+B.X1, BB.Y2+B.Y1); setlength(tempatpa,0); setlength(TPA,0); end; SetImageTarget(target); FreeBitmap(bmp); end;
+function ArrInStr(arrS: TStringArray; str: string): Boolean; var I, L, H: Integer; begin Result := True; L := Low(arrS);    H := High(arrS); for I := L to H do if Pos(arrS[I], Str) > 0 then Exit; Result := False; end;
+function chooseOptionMulti(Texts: TStringArray; TextType: String; Action: fnct_ActionOptions): Boolean; var B: TBox; i, H, x, R: Integer; T: TPoint; Options: array of TOptions; begin Result := False; Options := getOptions; if (Length(Options) < 1) then Exit; H := High(Options); for i := 0 To H do begin if ArrInStr(Texts, Options[i].Str) then begin Result := True; B := Options[i].Bounds; GetMousePos(T.x, T.y); R:= Min(((B.X2 - B.X1) shr 1), 5); case Action of ClickLeft: if PointInBox(T, B) then fastClick(MOUSE_LEFT) else mouseBox(intToBox(B.x1 + R, B.Y1, B.x2 - R, B.Y1 + 5), mouse_left); Move: if not PointInBox(T, B) then mouseBox(intToBox(B.x1 + R, B.Y1, B.x2 - R, B.Y1 + 5), mouse_left); Nothing: begin end; else writeLn('ChooseOptionMultiEx ', ' ClickRight not a valid click for RS menus!'); end; Exit; end; end; B := Options[0].BigBox; if Action <> Nothing then begin x := Max(B.X1 - 52, 0); if x = 0 then x := B.X2+10; mouse(x, Max(B.Y1 - 50, 0), 40, B.Y2-B.Y1); Wait(200 + Random(100)); end; end;
+function chooseOptionMulti(Txt: TStringArray): Boolean; overload; begin Result := chooseOptionMulti(Txt, 'All', ClickLeft); end;
+function waitOptionMulti(S: TStringArray; TextType: string; Action: fnct_ActionOptions; Time: Integer): Boolean; var T: Integer; begin Result := False; T := GetSystemTime + Time; while (GetSystemTime < T) do begin if (chooseOptionMulti(S, TextType, Action)) then exit(true); Wait(20 + Random(10)); end; end;
+function waitOptionMulti(S: TStringArray; Time: Integer): Boolean; overload; begin Result := waitOptionMulti(S, 'all', ClickLeft, Time); end;
+function waitOption(S: string; Time: Integer): Boolean; overload; begin Result := waitOptionMulti([s], 'all', ClickLeft, Time); end;
+function explodeBox(bx: TBox; rows, columns: integer): TBoxArray; var r, c, w, h, ew, eh, ow, oh, i, x, y: integer; begin if ((rows > 0) and (columns > 0) and (bx.X1 <= bx.X2) and (bx.Y1 <= bx.Y2)) then begin w := ((bx.X2 - bx.X1) + 1); h := ((bx.Y2 - bx.Y1) + 1); if (rows < 1) then rows := 1 else if (rows > h) then rows := h; if (columns < 1) then columns := 1 else if (columns > w) then columns := w; w := (w div columns); h := (h div rows); ew := (((bx.X2 - bx.X1) + 1) - (w * columns)); eh := (((bx.Y2 - bx.Y1) + 1) - (h * rows)); SetLength(result, (rows * columns)); y := bx.Y1; for r := 0 to (rows - 1) do begin x := bx.X1; if ((eh > 0) and (r < eh)) then oh := 1 else oh := 0; for c := 0 to (columns - 1) do begin if ((ew > 0) and (c < ew)) then ow := 1 else ow := 0; i := ((r * columns) + c); result[i].X1 := x; result[i].X2 := (x + (w - 1) + ow); result[i].Y1 := y; result[i].Y2 := (y + (h - 1) + oh); x := (Result[i].X2 + 1); end; y := (result[i].Y2 + 1); end; end else SetLength(result, 0); end;
+function inventorySlotFull(const slot:Integer):Boolean; var x, y:integer; begin result := FindColor(x, y, 65536, inventorySlots[slot]); end;
+function inventoryCount():Integer; var i:Integer; begin for i := 0 to high(inventorySlots) do if inventorySlotFull(i) then result := result + 1; end;
+function inventoryFull():boolean; begin result := (inventoryCount() = 28); end;
+function inventoryWaitChange(waitTime:integer):boolean;
+var
+  t:LongWord;
+  count:integer;
+begin
+  t := getSystemTime() + waitTime;
+  count := inventoryCount();
+
+  while (t >= getSystemTime()) do
+    if (count <> inventoryCount()) then
+      exit(true)
+    else
+      wait(20);
+end;
+
+function inventoryEmpty():boolean;
+begin
+  result := (inventoryCount() = 0);
+end;
+
+function getSimpleText(Colors:TIntegerArray;x1, y1, x2, y2:integer;font:string):String; var textTPA:TPointArray; textATPA, textATPAS:T2DPointArray; i:integer; textStr:string; begin setLength(textATPAS, length(colors)); for i := 0 to high(colors) do findColors(textATPAS[i], Colors[i], x1, y1, x2, y2); textTPA := mergeATPA(textATPAS); textATPA := SplitTPAEx(textTPA, 1, 10); filtertpasbetween(textatpa, 0, 1); SortATPAFromFirstPointX(textATPA, Point(0, 0)); result := getTextATPA(textATPA, 3, font); end;
+
+function compassNorth():boolean;
+begin
+  result := (countColorTolerance(1911089, 536, 6, 548, 18, 1) > 20);
+end;
+
+procedure setCompassNorth();
+begin
+  if (not compassNorth()) then
+  begin
+    moveMouse(544, 26);
+    wait(150);
+    fastClick(mouse_left);
+  end;
+end;
+
+function isLoggedIn():boolean;override;
+begin
+  result := (getColor(472, 491) = 16777215);
+end;
+
+function perHour(what:extended):int64;
+begin
+  result := Round(what * (3600.0 / (GetTimeRunning / 1000.0)));
+end;
+
+procedure state(s:string);
+begin
+  clearDebug();
+  writeln('==================================');
+  writeln('Time Running: ' , timeRunning);
+  writeln('State: ' , s);
+  writeln('Loads finished: ' , groupDigits(loads, ','), '[' , groupDigits(loads*130000, ',') , ' cash gained]');
+  writeln('Loads per hour: ' , groupDigits(perHour(loads), ','), '[', groupDigits(perHour(loads*130000),','), ' cash per hour]');
+  writeln('==================================');
+end;
+
+function loginPlayer():boolean;
+begin
+  if (not isLoggedIn()) then
+  begin
+    moveMouse(352, 302);
+    wait(150);
+    fastClick(mouse_left);
+    if waitFunc(@isLoggedIn, 40, 5000) then
+    begin
+      wait(2000);
+      setCompassNorth();
+      mainScreen.setAngle(MS_ANGLE_HIGH);
+    end
+    else
+      state('Failed to login player');
+  end;
+end;
+procedure initVars();
+begin
+  inventorySlots := explodeBox(IntToBox(565, 212, 724, 460), 7, 4);
+  mainscreen.setBounds(intToBox(0, 0, 514, 337));
+end;
+
+function bankOpen():boolean;
+begin
+  result := (getSimpleText([4106994], 186, 26, 331, 44, 'upchars07') = 'Bank of GrinderScape');
+end;
+
+procedure closeBank();
+begin
+  moveMouse(488, 35);
+  wait(150);
+  fastClick(mouse_left);
+end;
+
+procedure bankAll();
+begin
+  moveMouse(445, 308);
+  wait(150);
+  fastClick(mouse_left);
+end;
+
+procedure fixmisclick();
+var
+  x, y:integer;
+begin
+  if not findColorTolerance(x, y, 691127, 54, 61, 73, 78, 5) then
+  begin
+    moveMouse(487, 67);
+    wait(100);
+    fastClick(mouse_left);
+    wait(100);
+  end;
+end;
+
+procedure withDrawEssance();
+begin
+  fixMisClick();
+  wait(200);
+  moveMouse(458, 67);
+  wait(150);
+  fastClick(mouse_right);
+  waitOptionMulti(['All', 'll P'], 500);
+  inventoryWaitChange(1200);
+  closeBank();
+end;
+
+function findObject(color, tol:integer;hue, sat:extended;uptext:TStringArray):boolean;
+var
+  objTPA:TPointArray;
+  objATPA:T2DPointArray;
+  i:integer;
+begin
+  if findColorsTolerance(objTPA, color, mainscreen.getBounds(), tol, colorSetting(2, hue, sat)) then
+  begin
+    objATPA := objTPA.cluster(7);
+    objATPA.sortFromMidPoint(mainScreen.getBounds().getMiddle());
+    for i := 0 to high(objATPA) do
+    begin
+      moveMouse(objATPA[i].getBounds().getMiddle());
+      //wait(100);
+      if waitUpTextMulti(uptext, 400) then
+      begin
+        wait(100);
+        fastClick(mouse_left);
+        exit(true);
+      end;
+    end;
+  end;
+end;
+
+procedure loop();
+begin
+  loginPlayer();
+  if (inventoryFull()) then
+    if bankOpen() then
+      closeBank()
+    else
+      if findObject(6182235, 0, 0.00, 0.00, ['Craft', 'rune A', 'Altar']) then
+      begin
+        state('Runecrafting');
+        inventoryWaitChange(1200);
+        loads := loads + 1;
+      end else
+        state('Could not find altar')
+  else
+    if findObject(274244, 9, 0.10, 0.84, ['Bank', 'booth']) then
+    begin
+      if waitFunc(@bankOpen, 40, 3000) then
+      begin
+        state('Banking');
+        //bankAll();
+        //waitFunc(@inventoryEmpty, 40, 2000);
+        withDrawEssance();
+        waitFunc(@inventoryFull, 40, 2000);
+      end;
+    end;
+end;
+
+//var
+ // i:integer;
+
+begin
+  initVars();
+  loginPlayer();
+  setCompassNorth();
+  mainScreen.setAngle(MS_ANGLE_HIGH);
+  closeBank();
+  repeat
+    loop();
+  until isKeyDown(113);
+      {
+  for i := 0 to 5000 do
+  begin
+    writeln(i);
+    moveMouse(314, 139);
+    wait(20);
+    fastClick(mouse_right);
+    //wait(10);
+    moveMouse(289, 227);
+    //wait(10);
+    fastClick(mouse_left);
+   // waitOption('Buy 100', 200);
+    //wait(10);
+  end;}
+end.

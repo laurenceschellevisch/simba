@@ -1,0 +1,102 @@
+{* R_FrogSolve
++Detection and Solving
++By: elfyyy and Krazy_Meerkat
++
++*}
+
+var
+  R_FrogCurrentTile: TPoint;
+
+(** function R_FindFrog
+ * Description: Finds Frog and checks to see if it is our random
+ *)
+function R_FindFrog: Boolean;
+var
+  e:  integer;
+begin
+  Result := False;
+  if (R_IsNpcInArray('frog', R_FoundNpcs)) then
+  begin
+    for e := 0 to High(R_FoundNpcs) do
+    begin
+      if (Pos(Lowercase(R_FoundNpcs[e].Name), ' null frog') > 0) then
+      begin
+        if (not(R_NearTile(R_FoundNpcs[e].Tile, 8)) or (R_FoundNpcs[e].Interacting <> R_GetPlayerIndex)) then
+          Continue;
+        Result := True;
+        R_FrogCurrentTile:= R_GetTileGlobal;
+        Exit;
+      end;
+    end;
+  end;
+end;
+
+(**
+ * function R_SolveFrog
+ * Description: Solves frog random
+ *)
+function R_SolveFrog: Boolean;
+var
+  T, i: integer;
+  Loc: TPoint;
+  FrogPrincess: TNPC;
+begin
+  MarkTime(T);
+  Result := False;
+  repeat
+  for i := 0 to High(R_FoundNpcs) do
+  begin
+    if (Pos(Lowercase(R_FoundNpcs[i].Name), ' null frog') > 0) then //Looks for both 'null' and 'frog' in the npc name
+    begin
+      repeat
+        if not(R_NearTile(R_FrogCurrentTile, 50)) then //Teleported to cave
+        begin
+          R_FoundNpcs:= R_SortNPCs(R_GetAllNpcs);
+          R_FrogCurrentTile:= R_GetTileGlobal; //Update co-ords so we don't do this multiple times
+        end;
+        if (not R_IsNpcInArray('Frog', R_FoundNpcs)) then
+        begin
+          Result := True;
+          Exit;
+        end;
+        R_FoundNpcs[i]:= R_GetTNPC(R_FoundNpcs[i].Index);
+        R_BlindWalk(R_FoundNpcs[i].Tile);
+        wait(500+random(250));
+        while R_IsWalking do
+          wait(100+random(50));
+        R_FoundNpcs[i]:= R_GetTNPC(R_FoundNpcs[i].Index);
+        Loc := R_FoundNpcs[i].Tile;
+        Loc := R_TileToMs(Loc);
+      until((pointinbox(loc, inttobox(msx1, msy1, msx2, msy2))) or (Timefrommark(T) > 40000));
+      if pointinbox(loc, inttobox(msx1, msy1, msx2, msy2)) then
+        Mmouse(Loc.x, Loc.y, 0, 0);
+      if R_WaitUptext('Frog', 450+random(50)) then
+      begin
+        ClickMouse2(Mouse_Left);
+        wait(500+random(250));
+        while R_IsWalking do
+          wait(100+random(50));
+        ClickToContinue;
+        ChatWait;
+        FindNPCChatTextMulti(['eah ok','very','orry','hange','lrigh','Okay','kay','I supp','pose so','yeah','Yeah','Sure','ure'], Clickleft);
+        ChatWait;
+        ClickToContinue;
+        ChatWait;
+        FindNPCChatTextMulti(['eah ok','very','orry','hange','lrigh','Okay','kay','I supp','pose so','yeah','Yeah','Sure','ure'], Clickleft);
+        ChatWait;
+        ClickToContinue;
+        wait(600+random(250));
+        ClickToContinue;
+        wait(600+random(250));
+        ClickToContinue;
+        //Wait(8500+random(3317)); //This just lags out causing the player to enter the caves
+      end;
+      if (not R_FindNpc('frog', FrogPrincess)) then
+      begin
+        Result := True;
+        Exit;
+      end;
+    end;
+  end;
+  until(Timefrommark(T) > 300000);
+end;
